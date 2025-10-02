@@ -193,16 +193,6 @@ textarea:-webkit-autofill:active {
     margin-top: 1.5rem;
 }
 
-.auth-links {
-    margin-top: 1.5rem;
-    display: flex;
-    flex-direction: column;
-    gap: 0.5rem;
-    align-items: center;
-}
-.auth-links p {
-    margin: 0;
-}
 
 .welcome-message, .view-title {
     margin-bottom: 2rem;

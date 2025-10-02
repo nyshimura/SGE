@@ -1,5 +1,5 @@
 {
-  "name": "Sistema de Gestão Escolar com instalador",
+  "name": "Sistema de Gestão Escolar",
   "description": "Um protótipo interativo de um sistema de gestão escolar, demonstrando os fluxos de matrícula e frequência para alunos, administradores e professores.",
   "requestFramePermissions": []
 }
