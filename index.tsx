@@ -161,18 +161,6 @@ declare global {
 // --- SIMULATED DATABASE ---
 let db: Database;
 
-// --- DB Persistence ---
-function loadDb(): Database | null {
-    const config = localStorage.getItem('sge_config');
-    if (!config) {
-        if (!window.location.pathname.includes('install')) {
-            window.location.href = 'install/index.html';
-        }
-        return null;
-    }
-    return JSON.parse(config);
-}
-
 function saveDb() {
     localStorage.setItem('sge_config', JSON.stringify(db));
 }
