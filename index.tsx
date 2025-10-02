@@ -161,10 +161,6 @@ declare global {
 // --- SIMULATED DATABASE ---
 let db: Database;
 
-function saveDb() {
-    localStorage.setItem('sge_config', JSON.stringify(db));
-}
-
 // --- SECURITY HELPERS ---
 const salt = 'SGE_PROTOTYPE_SALT_v1';
 // In a real app, use a strong library like bcrypt.
