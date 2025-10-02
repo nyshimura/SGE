@@ -35,3 +35,94 @@ As seguintes contas de usuário são criadas pelo instalador para facilitar os t
 | Professor      | `silva@email.com` | `123`   |
 | Aluno (Ana)    | `ana@email.com`   | `123`   |
 | Aluno (Marcos) | `marcos@email.com`| `123`   |
+
+
+Criar o db_config.php na pasta API
+<?php
+header("Content-Type: application/json");
+header("Access-Control-Allow-Origin: *"); // Permite requisições de qualquer origem (útil para desenvolvimento)
+header("Access-Control-Allow-Headers: Content-Type");
+
+$servername = "localhost"; // Mantenha localhost
+$username = "SEU_USUARIO_DO_BANCO"; // Ex: u123456_sge_usuario
+$password = "SUA_SENHA_DO_BANCO";
+$dbname = "SEU_NOME_DO_BANCO";   // Ex: u123456_sge_dados
+
+$conn = new mysqli($servername, $username, $password, $dbname);
+
+if ($conn->connect_error) {
+    http_response_code(500);
+    die(json_encode(["error" => "Falha na conexão: " . $conn->connect_error]));
+}
+$conn->set_charset("utf8");
+?>
+
+
+Login.php na pasta api
+
+<?php
+require 'db_config.php';
+
+$data = json_decode(file_get_contents('php://input'), true);
+
+$email = $data['email'] ?? '';
+$password = $data['password'] ?? '';
+
+// A lógica de hash aqui replica a do seu protótipo para manter a compatibilidade.
+// Em um projeto real, use as funções password_hash() e password_verify() do PHP.
+$salt = 'SGE_PROTOTYPE_SALT_v1';
+$hashedPassword = base64_encode($password . $salt);
+
+$stmt = $conn->prepare("SELECT * FROM users WHERE email = ? AND password = ?");
+$stmt->bind_param("ss", $email, $hashedPassword);
+$stmt->execute();
+$result = $stmt->get_result();
+
+if ($result->num_rows > 0) {
+    $user = $result->fetch_assoc();
+    unset($user['password']); // Nunca envie a senha de volta!
+    echo json_encode($user);
+} else {
+    http_response_code(401); // Não autorizado
+    echo json_encode(["error" => "Email ou senha inválidos."]);
+}
+
+$stmt->close();
+$conn->close();
+?>
+
+
+O passo final é modificar seu código original para que ele converse com o PHP.
+
+No seu projeto no Linux Mint, abra o arquivo index.tsx.
+
+Encontre a função window.handleLogin e substitua-a pela versão abaixo, que usa fetch para chamar a API.
+
+// Em index.tsx, substitua a função antiga por esta:
+window.handleLogin = async (event: Event) => {
+    event.preventDefault();
+    const form = event.target as HTMLFormElement;
+    const email = (form.elements.namedItem('email') as HTMLInputElement).value;
+    const password = (form.elements.namedItem('password') as HTMLInputElement).value;
+
+    try {
+        // A mágica acontece aqui!
+        const response = await fetch('/api/login.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email, password }),
+        });
+
+        const data = await response.json();
+
+        if (response.ok) {
+            currentUser = data; // Armazena o usuário retornado pelo PHP
+            currentView = 'dashboard';
+        } else {
+            alert(data.error || 'Email ou senha inválidos.');
+        }
+    } catch (error) {
+        alert('Erro de comunicação com o servidor. Verifique sua conexão.');
+    }
+    render(); // Atualiza a tela
+};
