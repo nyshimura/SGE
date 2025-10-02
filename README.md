@@ -38,7 +38,7 @@ As seguintes contas de usuário são criadas pelo instalador para facilitar os t
 
 
 Criar o db_config.php na pasta API
-<?php
+// <?php
 header("Content-Type: application/json");
 header("Access-Control-Allow-Origin: *"); // Permite requisições de qualquer origem (útil para desenvolvimento)
 header("Access-Control-Allow-Headers: Content-Type");
@@ -55,12 +55,12 @@ if ($conn->connect_error) {
     die(json_encode(["error" => "Falha na conexão: " . $conn->connect_error]));
 }
 $conn->set_charset("utf8");
-?>
+?> //
 
 
 Login.php na pasta api
 
-<?php
+// <?php
 require 'db_config.php';
 
 $data = json_decode(file_get_contents('php://input'), true);
@@ -90,7 +90,7 @@ if ($result->num_rows > 0) {
 $stmt->close();
 $conn->close();
 ?>
-
+//
 
 O passo final é modificar seu código original para que ele converse com o PHP.
 
@@ -126,3 +126,4 @@ window.handleLogin = async (event: Event) => {
     }
     render(); // Atualiza a tela
 };
+//
