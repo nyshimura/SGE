@@ -189,12 +189,35 @@ export async function handleUpdateSystemSettings(event) {
     };
 
     try {
-        await apiCall('updateSystemSettings', settingsData);
+        await apiCall('updateSystemSettings', { settingsData });
         alert('Configurações salvas com sucesso!');
         appState.systemSettings = null; // Força recarregar na próxima vez
         handleNavigateBackToDashboard();
     } catch(e) { /* handled by apiCall */ }
 }
+
+export async function handleChangePassword(event) {
+    event.preventDefault();
+    const form = event.target;
+    const formData = new FormData(form);
+    const userId = parseInt(formData.get('userId'), 10);
+    const currentPassword = formData.get('currentPassword');
+    const newPassword = formData.get('newPassword');
+    const confirmPassword = formData.get('confirmPassword');
+
+    if (newPassword !== confirmPassword) {
+        return alert('A nova senha e a confirmação não correspondem.');
+    }
+
+    try {
+        await apiCall('changePassword', { userId, currentPassword, newPassword });
+        alert('Senha alterada com sucesso!');
+        form.reset();
+    } catch (e) {
+        // O erro já é tratado e alertado pela função apiCall
+    }
+}
+
 
 export function previewProfileImage(event) {
     const input = event.target;
@@ -399,11 +422,17 @@ export async function handleGenerateDescription(formId) {
     generateButton.textContent = 'Gerando...';
 
     try {
-        const data = await apiCall('generateCourseDescription', { courseName });
-        descriptionTextarea.value = data.description.trim();
+        const { GoogleGenerativeAI } = await import('@google/genai');
+        const genAI = new GoogleGenerativeAI(appState.systemSettings.geminiApiKey);
+        const model = genAI.getGenerativeModel({ model: "gemini-pro" });
+        const prompt = `Crie uma descrição concisa e atrativa para um curso chamado "${courseName}". A descrição deve ter no máximo 3 frases e destacar os principais benefícios ou o público-alvo.`;
+        const result = await model.generateContent(prompt);
+        const response = await result.response;
+        const text = response.text();
+        descriptionTextarea.value = text.trim();
     } catch (error) {
         console.error("AI description generation failed:", error);
-        alert("Ocorreu um erro ao gerar a descrição com IA. Verifique a configuração do servidor.");
+        alert("Ocorreu um erro ao gerar a descrição com IA. Verifique sua chave de API e a conexão.");
     } finally {
         generateButton.disabled = false;
         generateButton.textContent = 'Gerar com IA ✨';
