@@ -57,7 +57,6 @@ try {
             handle_approve_enrollment($conn, $input);
             break;
         case 'createCourse':
-            // Verifica se a chave 'courseData' existe antes de acessá-la
             if (!isset($input['courseData'])) send_response(false, 'Dados do curso ausentes.', 400);
             handle_create_course($conn, $input['courseData']);
             break;
@@ -92,6 +91,9 @@ try {
         case 'updateProfile':
             handle_update_profile($conn, $input);
             break;
+        case 'changePassword':
+            handle_change_password($conn, $input);
+            break;
         case 'updateSchoolProfile':
             if (!isset($input['profileData'])) send_response(false, 'Dados do perfil ausentes.', 400);
             handle_update_school_profile($conn, $input['profileData']);
@@ -112,7 +114,7 @@ try {
             handle_get_system_settings($conn);
             break;
         case 'updateSystemSettings':
-            if (!isset($input['settingsData'])) send_response(false, 'Dados de configurações ausentes.', 400);
+             if (!isset($input['settingsData'])) send_response(false, 'Dados de configurações ausentes.', 400);
             handle_update_system_settings($conn, $input['settingsData']);
             break;
         case 'exportDatabase':
@@ -120,7 +122,7 @@ try {
             break;
 
         default:
-            send_response(false, 'Ação desconhecida ou não especificada.', 400);
+            send_response(false, 'Ação desconhecida ou não especificada: ' . htmlspecialchars($action), 400);
             break;
     }
 } catch (PDOException $e) {
@@ -581,10 +583,54 @@ function handle_update_profile($conn, $data) {
     send_response(true, ['message' => 'Perfil atualizado com sucesso.']);
 }
 
+function handle_change_password($conn, $data) {
+    $userId = isset($data['userId']) ? (int)$data['userId'] : null;
+    $currentPassword = isset($data['currentPassword']) ? $data['currentPassword'] : null;
+    $newPassword = isset($data['newPassword']) ? $data['newPassword'] : null;
+
+    if (!$userId || !$currentPassword || !$newPassword) {
+        send_response(false, 'Todos os campos são obrigatórios.', 400);
+    }
+
+    // Busca o hash da senha atual no banco
+    $stmt = $conn->prepare("SELECT password_hash FROM users WHERE id = ?");
+    $stmt->execute([$userId]);
+    $user = $stmt->fetch();
+
+    if (!$user) {
+        send_response(false, 'Usuário não encontrado.', 404);
+    }
+
+    // Verifica se a senha atual fornecida corresponde ao hash armazenado
+    if (password_verify($currentPassword, $user['password_hash'])) {
+        // Se corresponder, cria um novo hash para a nova senha
+        $new_password_hash = password_hash($newPassword, PASSWORD_DEFAULT);
+        
+        // Atualiza a senha no banco de dados
+        $updateStmt = $conn->prepare("UPDATE users SET password_hash = ? WHERE id = ?");
+        $success = $updateStmt->execute([$new_password_hash, $userId]);
+
+        if ($success) {
+            send_response(true, ['message' => 'Senha alterada com sucesso.']);
+        } else {
+            send_response(false, 'Falha ao atualizar a senha.', 500);
+        }
+    } else {
+        // Se a senha atual não corresponder
+        send_response(false, 'A senha atual está incorreta.', 401);
+    }
+}
+
+
 function handle_update_school_profile($conn, $data) {
     $sql = "UPDATE school_profile SET name = ?, cnpj = ?, address = ?, phone = ?, pixKeyType = ?, pixKey = ?";
     $params = [
-        $data['name'], $data['cnpj'], $data['address'], $data['phone'], $data['pixKeyType'], $data['pixKey']
+        isset($data['name']) ? $data['name'] : null,
+        isset($data['cnpj']) ? $data['cnpj'] : null,
+        isset($data['address']) ? $data['address'] : null,
+        isset($data['phone']) ? $data['phone'] : null,
+        isset($data['pixKeyType']) ? $data['pixKeyType'] : null,
+        isset($data['pixKey']) ? $data['pixKey'] : null
     ];
 
     if (!empty($data['profilePicture'])) {
@@ -595,8 +641,15 @@ function handle_update_school_profile($conn, $data) {
     $sql .= " WHERE id = 1";
     $stmt = $conn->prepare($sql);
     $stmt->execute($params);
-    send_response(true, ['message' => 'Perfil da escola atualizado.']);
+
+    // Retorna o perfil atualizado
+    $profileStmt = $conn->prepare("SELECT * FROM school_profile WHERE id = 1");
+    $profileStmt->execute();
+    $updatedProfile = $profileStmt->fetch();
+
+    send_response(true, ['message' => 'Perfil da escola atualizado.', 'profile' => $updatedProfile]);
 }
+
 
 function handle_get_financial_dashboard_data($conn, $data) {
     $month = $data['month']; // Formato YYYY-MM
@@ -676,20 +729,24 @@ function handle_get_system_settings($conn) {
 }
 
 function handle_update_system_settings($conn, $data) {
+    // A chave 'settingsData' já foi verificada no switch case
     $sql = "UPDATE system_settings SET 
-                smtpServer = ?, smtpPort = ?, smtpUser = ?, smtpPass = ?, 
                 language = ?, timeZone = ?, currencySymbol = ?, defaultDueDay = ?,
-                dbHost = ?, dbUser = ?, dbPass = ?, dbName = ?, dbPort = ?
+                geminiApiKey = ?,
+                smtpServer = ?, smtpPort = ?, smtpUser = ?, smtpPass = ?,
+                enableTerminationFine = ?, terminationFineMonths = ?
             WHERE id = 1";
             
     $stmt = $conn->prepare($sql);
     $stmt->execute([
-        $data['smtpServer'], $data['smtpPort'], $data['smtpUser'], $data['smtpPass'],
         $data['language'], $data['timeZone'], $data['currencySymbol'], $data['defaultDueDay'],
-        $data['dbHost'], $data['dbUser'], $data['dbPass'], $data['dbName'], $data['dbPort']
+        $data['geminiApiKey'],
+        $data['smtpServer'], $data['smtpPort'], $data['smtpUser'], $data['smtpPass'],
+        $data['enableTerminationFine'], $data['terminationFineMonths']
     ]);
     send_response(true, ['message' => 'Configurações salvas.']);
 }
+
 
 function handle_export_database($conn) {
     $tables = ['users', 'courses', 'enrollments', 'attendance', 'payments', 'school_profile', 'system_settings'];
