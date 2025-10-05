@@ -46,6 +46,31 @@ export async function renderProfileView(userId) {
         `;
     }
 
+    const changePasswordForm = isOwner ? `
+        <div class="admin-only-section">
+            <h3 class="card-title">Alterar Senha</h3>
+            <form onsubmit="window.handleChangePassword(event)">
+                 <input type="hidden" name="userId" value="${userId}">
+                 <div class="form-group">
+                    <label for="currentPassword">Senha Atual</label>
+                    <input type="password" id="currentPassword" name="currentPassword" required autocomplete="current-password">
+                </div>
+                <div class="profile-grid">
+                    <div class="form-group">
+                        <label for="newPassword">Nova Senha</label>
+                        <input type="password" id="newPassword" name="newPassword" required autocomplete="new-password">
+                    </div>
+                    <div class="form-group">
+                        <label for="confirmPassword">Confirmar Nova Senha</label>
+                        <input type="password" id="confirmPassword" name="confirmPassword" required autocomplete="new-password">
+                    </div>
+                </div>
+                <button type="submit" class="action-button secondary">Alterar Senha</button>
+            </form>
+        </div>
+    ` : '';
+
+
     return `
         <div class="view-header">
             <h2>Perfil de ${userToView.firstName} ${userToView.lastName || ''}</h2>
@@ -86,14 +111,15 @@ export async function renderProfileView(userId) {
                         <textarea id="address" name="address" rows="3" ${isFieldDisabled('address') ? 'disabled' : ''}>${userToView.address || ''}</textarea>
                     </div>
 
+                    ${isOwner ? `<button type="submit" class="action-button">Salvar Alterações</button>`: ''}
+
                     <div class="admin-only-section">
                        ${enrollmentsHtml}
                        ${(userToView.role === 'student') ? renderStudentFinancialHistory(userId, data.payments, true, isAdminViewer) : ''}
                     </div>
-
-                    <button type="submit" class="action-button">Salvar Alterações</button>
                 </div>
             </form>
+            ${changePasswordForm}
         </div>
     `;
 }
