@@ -170,7 +170,6 @@ export async function handleUpdateSystemSettings(event) {
 
     const enableFine = elements.namedItem('enableTerminationFine').checked;
     const fineMonthsValue = elements.namedItem('terminationFineMonths').value;
-    // Garante que um número inteiro válido seja enviado. Usa 1 como padrão se o campo estiver vazio ou for inválido.
     const terminationFineMonths = parseInt(fineMonthsValue, 10);
     
     const settingsData = {
@@ -178,13 +177,12 @@ export async function handleUpdateSystemSettings(event) {
         timeZone: elements.namedItem('timeZone').value,
         currencySymbol: elements.namedItem('currencySymbol').value,
         defaultDueDay: elements.namedItem('defaultDueDay').value,
-        geminiApiKey: elements.namedItem('geminiApiKey').value || null, // Envia null se o campo estiver vazio
+        geminiApiKey: elements.namedItem('geminiApiKey').value || null,
         smtpServer: elements.namedItem('smtpServer').value,
         smtpPort: elements.namedItem('smtpPort').value,
         smtpUser: elements.namedItem('smtpUser').value,
         smtpPass: elements.namedItem('smtpPass').value,
-        enableTerminationFine: enableFine ? '1' : '0',
-        // Sempre envia um valor inteiro válido para evitar erros de SQL 'NOT NULL'.
+        enableTerminationFine: enableFine ? 1 : 0,
         terminationFineMonths: !isNaN(terminationFineMonths) && terminationFineMonths > 0 ? terminationFineMonths : 1,
     };
 
@@ -195,6 +193,7 @@ export async function handleUpdateSystemSettings(event) {
         handleNavigateBackToDashboard();
     } catch(e) { /* handled by apiCall */ }
 }
+
 
 export async function handleChangePassword(event) {
     event.preventDefault();
@@ -291,6 +290,21 @@ export async function handleReopenCourse(courseId) {
     } catch(e) { /* handled by apiCall */ }
 }
 
+export async function handleCancelEnrollment(studentId, courseId) {
+    const confirmation = confirm("Você tem certeza que deseja trancar esta matrícula? Esta ação não pode ser desfeita e pode gerar uma multa rescisória.");
+    if (confirmation) {
+        try {
+            const result = await apiCall('cancelEnrollment', { studentId, courseId });
+            alert(result.message || 'Matrícula trancada com sucesso.');
+            // Navega de volta ao painel principal para recarregar os dados
+            handleNavigateBackToDashboard();
+        } catch (e) {
+            // O erro já é tratado e exibido pela função apiCall
+        }
+    }
+}
+
+
 export function handleNavigateToAttendance(courseId) {
     appState.viewingCourseId = courseId;
     appState.adminView = 'attendance';
@@ -364,9 +378,15 @@ export async function handlePaymentStatusChange(event, paymentId) {
     const newStatus = event.target.value;
     try {
         await apiCall('updatePaymentStatus', { paymentId, status: newStatus });
+        // Recarrega os pagamentos do aluno expandido para refletir a mudança
+        if (appState.financialState.expandedStudentId) {
+            const data = await apiCall('getStudentPayments', { studentId: appState.financialState.expandedStudentId }, 'GET');
+            appState.payments = data.payments;
+        }
         render();
     } catch(e) { /* handled by apiCall */ }
 };
+
 
 export function handleInitiatePixPayment(paymentIds) {
     if (!appState.schoolProfile) return;

@@ -1,4 +1,5 @@
 import { apiCall } from '../../api.js';
+import { appState } from '../../state.js';
 
 export async function renderCourseDetailsView(course) {
     const data = await apiCall('getCourseDetails', { courseId: course.id }, 'GET');
@@ -21,6 +22,9 @@ export async function renderCourseDetailsView(course) {
         `;
     }
 
+    // Define se o usuário logado pode gerenciar matrículas
+    const canManage = appState.currentUser && (appState.currentUser.role === 'admin' || appState.currentUser.role === 'superadmin');
+
     return `
         <div class="view-header">
             <h2>Detalhes do Curso: ${course.name}</h2>
@@ -41,7 +45,7 @@ export async function renderCourseDetailsView(course) {
                 <div>${course.monthlyFee ? `R$ ${Number(course.monthlyFee).toFixed(2).replace('.', ',')} (${paymentInfo})` : 'Não definido'}</div>
 
                 <div><strong>Agenda:</strong></div>
-                <div>${course.dayOfWeek && course.startTime && course.endTime ? `${course.dayOfWeek}, das ${course.startTime} às ${course.endTime}` : 'Não definida'}</div>
+                <div>${course.dayOfWeek && course.startTime && course.endTime ? `${course.dayOfWeek}, das ${course.startTime} às ${endTime}` : 'Não definida'}</div>
             </div>
             ${auditInfo}
             <div class="course-description">
@@ -53,14 +57,24 @@ export async function renderCourseDetailsView(course) {
             <h3 class="card-title">Alunos Matriculados (${students.length})</h3>
             ${students.length > 0 ? `
                 <ul class="list">
-                    ${students.map((student) => `
+                    ${students.map((student) => {
+                        // Lógica mais clara para o botão do admin
+                        let cancelButton = '';
+                        if (canManage) {
+                            cancelButton = `<button class="action-button danger" onclick="window.handleCancelEnrollment(${student.id}, ${course.id})">Trancar Matrícula</button>`;
+                        }
+
+                        return `
                         <li class="list-item">
                             <div class="list-item-content">
                                 <span class="list-item-title">${student.firstName} ${student.lastName || ''}</span>
                                 <span class="list-item-subtitle">${student.email}</span>
                             </div>
+                            <div class="list-item-actions">
+                                ${cancelButton}
+                            </div>
                         </li>
-                    `).join('')}
+                    `}).join('')}
                 </ul>
             ` : '<p>Nenhum aluno com matrícula aprovada neste curso.</p>'}
         </div>

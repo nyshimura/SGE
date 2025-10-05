@@ -1,6 +1,6 @@
 <?php
 /**
- * Ponto de Entrada da API (Roteador Principal) - Versão de Alta Compatibilidade
+ * Ponto de Entrada da API (Roteador Principal)
  *
  * Responsável por:
  * 1. Incluir a configuração do banco de dados.
@@ -11,29 +11,30 @@
  */
 
 // Inclui o arquivo de configuração que já estabelece a conexão com o BD ($conn)
-require_once 'config.php';
+require_once '/sge/api/config.php';
 
 // --- FUNÇÃO AUXILIAR PARA ENVIAR RESPOSTAS ---
+/**
+ * Envia uma resposta JSON padronizada e encerra o script.
+ * @param bool $success - Indica se a operação foi bem-sucedida.
+ * @param mixed $data - Os dados a serem enviados (em caso de sucesso) ou uma mensagem de erro.
+ * @param int $statusCode - O código de status HTTP (padrão 200).
+ */
 function send_response($success, $data, $statusCode = 200) {
     http_response_code($statusCode);
-    // Garante que a resposta seja sempre JSON
-    header('Content-Type: application/json; charset=UTF-8');
     echo json_encode(['success' => $success, 'data' => $data]);
     exit();
 }
 
 // --- ROTEDOR PRINCIPAL ---
 
-// Pega a ação da requisição (forma compatível com versões mais antigas do PHP)
-$action = isset($_REQUEST['action']) ? $_REQUEST['action'] : null;
+// Pega a ação da requisição (seja GET ou POST)
+$action = $_REQUEST['action'] ?? null;
 
-// Pega o corpo da requisição e garante que seja um array, mesmo que vazio ou inválido
-$inputData = json_decode(file_get_contents('php://input'), true);
-$input = is_array($inputData) ? $inputData : [];
-
+// Pega o corpo da requisição (para dados enviados via POST em formato JSON)
+$input = json_decode(file_get_contents('php://input'), true) ?? [];
 
 try {
-    // Roteamento das ações para as funções correspondentes
     switch ($action) {
         case 'login':
             handle_login($conn, $input);
@@ -56,15 +57,10 @@ try {
         case 'approveEnrollment':
             handle_approve_enrollment($conn, $input);
             break;
-        case 'cancelEnrollment': // Nova rota
-            handle_cancel_enrollment($conn, $input);
-            break;
         case 'createCourse':
-            if (!isset($input['courseData'])) send_response(false, 'Dados do curso ausentes.', 400);
             handle_create_course($conn, $input['courseData']);
             break;
         case 'updateCourse':
-            if (!isset($input['courseData'])) send_response(false, 'Dados do curso ausentes.', 400);
             handle_update_course($conn, $input['courseData']);
             break;
         case 'endCourse':
@@ -94,11 +90,7 @@ try {
         case 'updateProfile':
             handle_update_profile($conn, $input);
             break;
-        case 'changePassword':
-            handle_change_password($conn, $input);
-            break;
         case 'updateSchoolProfile':
-            if (!isset($input['profileData'])) send_response(false, 'Dados do perfil ausentes.', 400);
             handle_update_school_profile($conn, $input['profileData']);
             break;
         case 'getFinancialDashboardData':
@@ -117,7 +109,6 @@ try {
             handle_get_system_settings($conn);
             break;
         case 'updateSystemSettings':
-             if (!isset($input['settingsData'])) send_response(false, 'Dados de configurações ausentes.', 400);
             handle_update_system_settings($conn, $input['settingsData']);
             break;
         case 'exportDatabase':
@@ -125,7 +116,7 @@ try {
             break;
 
         default:
-            send_response(false, 'Ação desconhecida ou não especificada: ' . htmlspecialchars($action), 400);
+            send_response(false, 'Ação desconhecida ou não especificada.', 400);
             break;
     }
 } catch (PDOException $e) {
@@ -138,71 +129,9 @@ try {
 
 // --- IMPLEMENTAÇÃO DAS FUNÇÕES HANDLER ---
 
-function handle_cancel_enrollment($conn, $data) {
-    $studentId = isset($data['studentId']) ? (int)$data['studentId'] : null;
-    $courseId = isset($data['courseId']) ? (int)$data['courseId'] : null;
-
-    if (!$studentId || !$courseId) {
-        send_response(false, 'ID do aluno e do curso são obrigatórios.', 400);
-    }
-
-    $conn->beginTransaction();
-    try {
-        // 1. Atualiza o status da matrícula para 'Cancelada'
-        $stmt = $conn->prepare("UPDATE enrollments SET status = 'Cancelada' WHERE studentId = ? AND courseId = ? AND status = 'Aprovada'");
-        $stmt->execute([$studentId, $courseId]);
-        
-        if ($stmt->rowCount() == 0) {
-             throw new Exception('Nenhuma matrícula aprovada encontrada para este aluno/curso.');
-        }
-
-        // 2. Busca as configurações de multa
-        $settingsStmt = $conn->query("SELECT enableTerminationFine, terminationFineMonths FROM system_settings WHERE id = 1");
-        $settings = $settingsStmt->fetch(PDO::FETCH_ASSOC);
-
-        $fineEnabled = isset($settings['enableTerminationFine']) && $settings['enableTerminationFine'] == 1;
-        $fineMonths = isset($settings['terminationFineMonths']) ? (int)$settings['terminationFineMonths'] : 0;
-        
-        $message = 'Matrícula trancada. Todos os pagamentos futuros foram cancelados.';
-
-        // 3. Busca todos os pagamentos futuros (Pendente ou Atrasado)
-        $paymentsStmt = $conn->prepare("SELECT id FROM payments WHERE studentId = ? AND courseId = ? AND (status = 'Pendente' OR status = 'Atrasado') ORDER BY dueDate ASC");
-        $paymentsStmt->execute([$studentId, $courseId]);
-        $futurePayments = $paymentsStmt->fetchAll(PDO::FETCH_COLUMN);
-
-        if (count($futurePayments) > 0) {
-            if ($fineEnabled && $fineMonths > 0) {
-                // Se a multa está habilitada, preserva o número de pagamentos definidos para a multa
-                $paymentsToKeep = array_slice($futurePayments, 0, $fineMonths);
-                $paymentsToCancel = array_slice($futurePayments, $fineMonths);
-                
-                if (count($paymentsToCancel) > 0) {
-                    $cancelSql = "UPDATE payments SET status = 'Cancelado' WHERE id IN (" . implode(',', array_fill(0, count($paymentsToCancel), '?')) . ")";
-                    $cancelStmt = $conn->prepare($cancelSql);
-                    $cancelStmt->execute($paymentsToCancel);
-                }
-                $message = "Matrícula trancada. Uma multa rescisória de {$fineMonths} mensalidade(s) foi mantida. Os demais pagamentos foram cancelados.";
-
-            } else {
-                // Se a multa está desabilitada, cancela TODOS os pagamentos futuros
-                $cancelSql = "UPDATE payments SET status = 'Cancelado' WHERE id IN (" . implode(',', array_fill(0, count($futurePayments), '?')) . ")";
-                $cancelStmt = $conn->prepare($cancelSql);
-                $cancelStmt->execute($futurePayments);
-            }
-        }
-        
-        $conn->commit();
-        send_response(true, ['message' => $message]);
-
-    } catch (Exception $e) {
-        $conn->rollBack();
-        send_response(false, 'Erro ao trancar matrícula: ' . $e->getMessage(), 500);
-    }
-}
-
 function handle_login($conn, $data) {
-    $email = isset($data['email']) ? $data['email'] : null;
-    $password = isset($data['password']) ? $data['password'] : null;
+    $email = $data['email'] ?? null;
+    $password = $data['password'] ?? null;
 
     if (!$email || !$password) {
         send_response(false, 'Email e senha são obrigatórios.', 400);
@@ -221,10 +150,9 @@ function handle_login($conn, $data) {
 }
 
 function handle_register($conn, $data) {
-    $name = isset($data['name']) ? $data['name'] : null;
-    $email = isset($data['email']) ? $data['email'] : null;
-    $password = isset($data['password']) ? $data['password'] : null;
-
+    $name = $data['name'] ?? null;
+    $email = $data['email'] ?? null;
+    $password = $data['password'] ?? null;
 
     if (!$name || !$email || !$password) {
         send_response(false, 'Nome, email e senha são obrigatórios.', 400);
@@ -252,9 +180,8 @@ function handle_register($conn, $data) {
 }
 
 function handle_get_dashboard_data($conn, $data) {
-    $userId = isset($data['userId']) ? $data['userId'] : null;
-    $role = isset($data['role']) ? $data['role'] : null;
-
+    $userId = $data['userId'] ?? null;
+    $role = $data['role'] ?? null;
 
     $response = [
         'courses' => [],
@@ -302,13 +229,9 @@ function handle_get_dashboard_data($conn, $data) {
 }
 
 function handle_get_school_profile($conn) {
-    $stmt = $conn->prepare("SELECT * FROM school_profile WHERE id = 1");
-    $stmt->execute();
-    $profile = $stmt->fetch();
-    // Envia a resposta mesmo que o perfil seja nulo (o frontend deve lidar com isso)
+    $profile = $conn->query("SELECT * FROM school_profile WHERE id = 1")->fetch();
     send_response(true, ['profile' => $profile]);
 }
-
 
 function handle_get_teachers($conn) {
     $teachers = $conn->query("SELECT id, firstName, lastName FROM users WHERE role = 'teacher' ORDER BY firstName ASC")->fetchAll();
@@ -358,7 +281,7 @@ function handle_approve_enrollment($conn, $data) {
         
         $stmtSettings = $conn->query("SELECT defaultDueDay FROM system_settings WHERE id = 1");
         $settings = $stmtSettings->fetch();
-        $dueDay = isset($settings['defaultDueDay']) ? $settings['defaultDueDay'] : 10;
+        $dueDay = $settings['defaultDueDay'] ?? 10;
 
         if ($course && $course['monthlyFee'] > 0) {
             $limit = ($course['paymentType'] === 'parcelado' && $course['installments'] > 0) ? $course['installments'] : 12; // Gera até 12 parcelas recorrentes
@@ -449,10 +372,10 @@ function handle_reopen_course($conn, $data) {
 }
 
 function handle_get_filtered_users($conn, $filters) {
-    $name = isset($filters['name']) ? $filters['name'] : '';
-    $role = isset($filters['role']) ? $filters['role'] : 'all';
-    $courseId = isset($filters['courseId']) ? $filters['courseId'] : 'all';
-    $enrollmentStatus = isset($filters['enrollmentStatus']) ? $filters['enrollmentStatus'] : 'all';
+    $name = $filters['name'] ?? '';
+    $role = $filters['role'] ?? 'all';
+    $courseId = $filters['courseId'] ?? 'all';
+    $enrollmentStatus = $filters['enrollmentStatus'] ?? 'all';
     
     $query = "SELECT u.id, u.firstName, u.lastName, u.email, u.role FROM users u";
     $params = [];
@@ -546,7 +469,7 @@ function handle_get_attendance_data($conn, $data) {
 function handle_save_attendance($conn, $data) {
     $courseId = $data['courseId'];
     $date = $data['date'];
-    $absentStudentIds = isset($data['absentStudentIds']) ? $data['absentStudentIds'] : [];
+    $absentStudentIds = $data['absentStudentIds'] ?? [];
 
     $conn->beginTransaction();
     try {
@@ -648,54 +571,10 @@ function handle_update_profile($conn, $data) {
     send_response(true, ['message' => 'Perfil atualizado com sucesso.']);
 }
 
-function handle_change_password($conn, $data) {
-    $userId = isset($data['userId']) ? (int)$data['userId'] : null;
-    $currentPassword = isset($data['currentPassword']) ? $data['currentPassword'] : null;
-    $newPassword = isset($data['newPassword']) ? $data['newPassword'] : null;
-
-    if (!$userId || !$currentPassword || !$newPassword) {
-        send_response(false, 'Todos os campos são obrigatórios.', 400);
-    }
-
-    // Busca o hash da senha atual no banco
-    $stmt = $conn->prepare("SELECT password_hash FROM users WHERE id = ?");
-    $stmt->execute([$userId]);
-    $user = $stmt->fetch();
-
-    if (!$user) {
-        send_response(false, 'Usuário não encontrado.', 404);
-    }
-
-    // Verifica se a senha atual fornecida corresponde ao hash armazenado
-    if (password_verify($currentPassword, $user['password_hash'])) {
-        // Se corresponder, cria um novo hash para a nova senha
-        $new_password_hash = password_hash($newPassword, PASSWORD_DEFAULT);
-        
-        // Atualiza a senha no banco de dados
-        $updateStmt = $conn->prepare("UPDATE users SET password_hash = ? WHERE id = ?");
-        $success = $updateStmt->execute([$new_password_hash, $userId]);
-
-        if ($success) {
-            send_response(true, ['message' => 'Senha alterada com sucesso.']);
-        } else {
-            send_response(false, 'Falha ao atualizar a senha.', 500);
-        }
-    } else {
-        // Se a senha atual não corresponder
-        send_response(false, 'A senha atual está incorreta.', 401);
-    }
-}
-
-
 function handle_update_school_profile($conn, $data) {
     $sql = "UPDATE school_profile SET name = ?, cnpj = ?, address = ?, phone = ?, pixKeyType = ?, pixKey = ?";
     $params = [
-        isset($data['name']) ? $data['name'] : null,
-        isset($data['cnpj']) ? $data['cnpj'] : null,
-        isset($data['address']) ? $data['address'] : null,
-        isset($data['phone']) ? $data['phone'] : null,
-        isset($data['pixKeyType']) ? $data['pixKeyType'] : null,
-        isset($data['pixKey']) ? $data['pixKey'] : null
+        $data['name'], $data['cnpj'], $data['address'], $data['phone'], $data['pixKeyType'], $data['pixKey']
     ];
 
     if (!empty($data['profilePicture'])) {
@@ -706,15 +585,8 @@ function handle_update_school_profile($conn, $data) {
     $sql .= " WHERE id = 1";
     $stmt = $conn->prepare($sql);
     $stmt->execute($params);
-
-    // Retorna o perfil atualizado
-    $profileStmt = $conn->prepare("SELECT * FROM school_profile WHERE id = 1");
-    $profileStmt->execute();
-    $updatedProfile = $profileStmt->fetch();
-
-    send_response(true, ['message' => 'Perfil da escola atualizado.', 'profile' => $updatedProfile]);
+    send_response(true, ['message' => 'Perfil da escola atualizado.']);
 }
-
 
 function handle_get_financial_dashboard_data($conn, $data) {
     $month = $data['month']; // Formato YYYY-MM
@@ -724,11 +596,11 @@ function handle_get_financial_dashboard_data($conn, $data) {
     $stmtMonth->execute(["$month%"]);
     $monthData = $stmtMonth->fetchAll(PDO::FETCH_KEY_PAIR);
     
-    $collectedRevenue = isset($monthData['Pago']) ? $monthData['Pago'] : 0;
-    $pendingRevenue = isset($monthData['Pendente']) ? $monthData['Pendente'] : 0;
-    $overdueRevenue = isset($monthData['Atrasado']) ? $monthData['Atrasado'] : 0;
+    $collectedRevenue = $monthData['Pago'] ?? 0;
+    $pendingRevenue = $monthData['Pendente'] ?? 0;
+    $overdueRevenue = $monthData['Atrasado'] ?? 0;
     $outstandingRevenue = $pendingRevenue + $overdueRevenue;
-    $expectedRevenue = $collectedRevenue + $outstandingRevenue + (isset($monthData['Cancelado']) ? $monthData['Cancelado'] : 0);
+    $expectedRevenue = $collectedRevenue + $outstandingRevenue + ($monthData['Cancelado'] ?? 0);
 
     // Receita por curso (mês selecionado)
     $stmtCourse = $conn->prepare("SELECT c.name, SUM(p.amount) as total FROM payments p JOIN courses c ON p.courseId = c.id WHERE p.referenceDate LIKE ? AND p.status = 'Pago' GROUP BY c.name");
@@ -747,8 +619,8 @@ function handle_get_financial_dashboard_data($conn, $data) {
         
         $evolutionData[] = [
             'month' => $date->format('M'),
-            'collected' => isset($row['collected']) ? $row['collected'] : 0,
-            'expected' => isset($row['expected']) ? $row['expected'] : 0,
+            'collected' => $row['collected'] ?? 0,
+            'expected' => $row['expected'] ?? 0,
         ];
         $date->modify('+1 month');
     }
@@ -795,22 +667,19 @@ function handle_get_system_settings($conn) {
 
 function handle_update_system_settings($conn, $data) {
     $sql = "UPDATE system_settings SET 
+                smtpServer = ?, smtpPort = ?, smtpUser = ?, smtpPass = ?, 
                 language = ?, timeZone = ?, currencySymbol = ?, defaultDueDay = ?,
-                geminiApiKey = ?,
-                smtpServer = ?, smtpPort = ?, smtpUser = ?, smtpPass = ?,
-                enableTerminationFine = ?, terminationFineMonths = ?
+                dbHost = ?, dbUser = ?, dbPass = ?, dbName = ?, dbPort = ?
             WHERE id = 1";
             
     $stmt = $conn->prepare($sql);
     $stmt->execute([
-        $data['language'], $data['timeZone'], $data['currencySymbol'], $data['defaultDueDay'],
-        $data['geminiApiKey'],
         $data['smtpServer'], $data['smtpPort'], $data['smtpUser'], $data['smtpPass'],
-        $data['enableTerminationFine'], $data['terminationFineMonths']
+        $data['language'], $data['timeZone'], $data['currencySymbol'], $data['defaultDueDay'],
+        $data['dbHost'], $data['dbUser'], $data['dbPass'], $data['dbName'], $data['dbPort']
     ]);
     send_response(true, ['message' => 'Configurações salvas.']);
 }
-
 
 function handle_export_database($conn) {
     $tables = ['users', 'courses', 'enrollments', 'attendance', 'payments', 'school_profile', 'system_settings'];
