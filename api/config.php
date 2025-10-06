@@ -30,9 +30,9 @@ if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') {
 // --- CREDENCIAIS DO BANCO DE DADOS ---
 // Dados que você me forneceu.
 define('DB_HOST', 'localhost');
-define('DB_USER', 'u821635548_base');
-define('DB_PASS', '100Senha!S');
-define('DB_NAME', 'u821635548_sistema');
+define('DB_USER', 'UserdaBase');
+define('DB_PASS', 'senhadoBD');
+define('DB_NAME', 'NomedaBase');
 
 // --- CONEXÃO COM O BANCO DE DADOS (USANDO PDO) ---
 $conn = null; // Inicializa a variável de conexão
@@ -63,4 +63,5 @@ try {
 
 // Se o script chegou até aqui, a variável $conn contém uma conexão válida com o banco de dados
 // e pode ser usada pelos outros arquivos que incluírem este.
+
 ?>
