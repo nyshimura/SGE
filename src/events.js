@@ -296,8 +296,20 @@ export async function handleCancelEnrollment(studentId, courseId) {
         try {
             const result = await apiCall('cancelEnrollment', { studentId, courseId });
             alert(result.message || 'Matrícula trancada com sucesso.');
-            // Navega de volta ao painel principal para recarregar os dados
-            handleNavigateBackToDashboard();
+            render(); // Apenas re-renderiza a view atual para mostrar a mudança
+        } catch (e) {
+            // O erro já é tratado e exibido pela função apiCall
+        }
+    }
+}
+
+export async function handleReactivateEnrollment(studentId, courseId) {
+    const confirmation = confirm("Você tem certeza que deseja reativar esta matrícula? Os pagamentos que foram cancelados serão restaurados.");
+    if (confirmation) {
+        try {
+            const result = await apiCall('reactivateEnrollment', { studentId, courseId });
+            alert(result.message || 'Matrícula reativada com sucesso.');
+            render(); // Apenas re-renderiza a view atual para mostrar a mudança
         } catch (e) {
             // O erro já é tratado e exibido pela função apiCall
         }

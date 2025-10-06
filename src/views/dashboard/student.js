@@ -7,7 +7,7 @@ export function renderStudentView(studentId, data) {
 
   const myEnrollments = data.enrollments || [];
   const myAttendance = data.attendance || [];
-  const allCourses = data.courses || []; // Usar todos os cursos para encontrar os detalhes
+  const allCourses = data.courses || []; 
 
   const cards = [
     {
@@ -18,14 +18,13 @@ export function renderStudentView(studentId, data) {
             <ul class="list">
                 ${myEnrollments.map((enrollment) => {
                     const course = allCourses.find((c) => c.id === enrollment.courseId);
-                    if (!course) return ''; // Não renderiza se o curso não for encontrado
+                    if (!course) return ''; 
                     
                     const teacher = data.teachers.find((t) => t.id === course.teacherId);
                     
-                    // Lógica separada e clara para o botão de trancamento
-                    let cancelButton = '';
+                    let actionButton = '';
                     if (enrollment.status === 'Aprovada') {
-                        cancelButton = `<button class="action-button danger" onclick="window.handleCancelEnrollment(${student.id}, ${course.id})">Trancar Matrícula</button>`;
+                        actionButton = `<button class="action-button danger" onclick="window.handleCancelEnrollment(${student.id}, ${course.id})">Trancar Matrícula</button>`;
                     }
 
                     return `
@@ -37,7 +36,7 @@ export function renderStudentView(studentId, data) {
                             <div class="list-item-actions">
                                 <button class="action-button secondary" onclick="window.handleNavigateToCourseDetails(${course.id})">Detalhes</button>
                                 <span class="status-badge status-${enrollment.status.toLowerCase()}">${enrollment.status}</span>
-                                ${cancelButton}
+                                ${actionButton}
                             </div>
                         </li>
                     `;
@@ -53,9 +52,10 @@ export function renderStudentView(studentId, data) {
             <h3 class="card-title">🏫 Cursos Disponíveis para Inscrição</h3>
             <ul class="list">
                 ${allCourses.filter(c => c.status === 'Aberto').map((course) => {
-                    const isEnrolled = myEnrollments.some((e) => e.courseId === course.id);
+                    // CORREÇÃO: Impede a exibição se o aluno já tiver uma matrícula ativa ou pendente
+                    const isEnrolled = myEnrollments.some((e) => e.courseId === course.id && (e.status === 'Aprovada' || e.status === 'Pendente'));
                     if (isEnrolled) {
-                        return ''; // Não mostra cursos onde o aluno já tem uma matrícula (qualquer status)
+                        return '';
                     }
 
                     const teacher = data.teachers.find((t) => t.id === course.teacherId);

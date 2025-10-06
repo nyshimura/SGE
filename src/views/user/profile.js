@@ -31,16 +31,25 @@ export async function renderProfileView(userId) {
             <h3 class="card-title">Matrículas</h3>
             ${enrollments.length === 0 ? '<p>Nenhuma matrícula encontrada.</p>' : `
                 <ul class="list">
-                    ${enrollments.map((e) => `
+                    ${enrollments.map((e) => {
+                        let actionButton = '';
+                        if (e.status === 'Aprovada') {
+                            actionButton = `<button class="action-button danger" onclick="window.handleCancelEnrollment(${userId}, ${e.courseId})">Trancar</button>`;
+                        } else if (e.status === 'Cancelada') {
+                            actionButton = `<button class="action-button" onclick="window.handleReactivateEnrollment(${userId}, ${e.courseId})">Reativar</button>`;
+                        }
+
+                        return `
                         <li class="list-item">
                             <div class="list-item-content">
                                 <span class="list-item-title">${e.courseName || 'Curso não encontrado'}</span>
                             </div>
                             <div class="list-item-actions">
                                 <span class="status-badge status-${e.status.toLowerCase()}">${e.status}</span>
+                                ${actionButton}
                             </div>
                         </li>
-                    `).join('')}
+                    `}).join('')}
                 </ul>
             `}
         `;

@@ -2,10 +2,11 @@ import { apiCall } from '../../api.js';
 import { appState } from '../../state.js';
 
 export async function renderCourseDetailsView(course) {
+    // A API agora retorna o status da matrícula de cada aluno
     const data = await apiCall('getCourseDetails', { courseId: course.id }, 'GET');
     const { teacher, students, admin } = data;
     
-    const enrolledCount = students.length;
+    const enrolledCount = students.filter(s => s.status === 'Aprovada').length;
     const vacancies = course.totalSlots === null ? 'Ilimitadas' : Math.max(0, course.totalSlots - enrolledCount);
 
     let paymentInfo = course.paymentType === 'parcelado'
@@ -22,7 +23,6 @@ export async function renderCourseDetailsView(course) {
         `;
     }
 
-    // Define se o usuário logado pode gerenciar matrículas
     const canManage = appState.currentUser && (appState.currentUser.role === 'admin' || appState.currentUser.role === 'superadmin');
 
     return `
@@ -38,14 +38,14 @@ export async function renderCourseDetailsView(course) {
                 <div><strong>Status:</strong></div>
                 <div><span class="status-badge status-${course.status.toLowerCase()}">${course.status}</span></div>
 
-                <div><strong>Vagas:</strong></div>
-                <div>${enrolledCount} / ${course.totalSlots === null ? '∞' : course.totalSlots} (Restantes: ${vacancies})</div>
+                <div><strong>Vagas Ocupadas:</strong></div>
+                <div>${enrolledCount} / ${course.totalSlots === null ? '∞' : course.totalSlots} (Vagas Restantes: ${vacancies})</div>
                 
                 <div><strong>Mensalidade:</strong></div>
                 <div>${course.monthlyFee ? `R$ ${Number(course.monthlyFee).toFixed(2).replace('.', ',')} (${paymentInfo})` : 'Não definido'}</div>
 
                 <div><strong>Agenda:</strong></div>
-                <div>${course.dayOfWeek && course.startTime && course.endTime ? `${course.dayOfWeek}, das ${course.startTime} às ${endTime}` : 'Não definida'}</div>
+                <div>${course.dayOfWeek && course.startTime && course.endTime ? `${course.dayOfWeek}, das ${course.startTime} às ${course.endTime}` : 'Não definida'}</div>
             </div>
             ${auditInfo}
             <div class="course-description">
@@ -54,14 +54,17 @@ export async function renderCourseDetailsView(course) {
             </div>
         </div>
         <div class="card full-width">
-            <h3 class="card-title">Alunos Matriculados (${students.length})</h3>
+            <h3 class="card-title">Alunos com Matrícula (${students.length})</h3>
             ${students.length > 0 ? `
                 <ul class="list">
                     ${students.map((student) => {
-                        // Lógica mais clara para o botão do admin
-                        let cancelButton = '';
+                        let actionButton = '';
                         if (canManage) {
-                            cancelButton = `<button class="action-button danger" onclick="window.handleCancelEnrollment(${student.id}, ${course.id})">Trancar Matrícula</button>`;
+                            if (student.status === 'Aprovada') {
+                                actionButton = `<button class="action-button danger" onclick="window.handleCancelEnrollment(${student.id}, ${course.id})">Trancar Matrícula</button>`;
+                            } else if (student.status === 'Cancelada') {
+                                actionButton = `<button class="action-button" onclick="window.handleReactivateEnrollment(${student.id}, ${course.id})">Reativar</button>`;
+                            }
                         }
 
                         return `
@@ -71,12 +74,13 @@ export async function renderCourseDetailsView(course) {
                                 <span class="list-item-subtitle">${student.email}</span>
                             </div>
                             <div class="list-item-actions">
-                                ${cancelButton}
+                                <span class="status-badge status-${student.status.toLowerCase()}">${student.status}</span>
+                                ${actionButton}
                             </div>
                         </li>
                     `}).join('')}
                 </ul>
-            ` : '<p>Nenhum aluno com matrícula aprovada neste curso.</p>'}
+            ` : '<p>Nenhum aluno com matrícula aprovada ou cancelada neste curso.</p>'}
         </div>
     `;
 }
