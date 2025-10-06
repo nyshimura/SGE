@@ -61,6 +61,4 @@ Após o upload de todos os arquivos, você pode acessar seu site pelo seu domín
 
 ## Configurações Adicionais (Opcional)
 
-*   **Chave da API de IA (Gemini)**: Para usar a funcionalidade de geração de descrição de cursos com IA, acesse o sistema como superadmin, vá para "Configurações" -> "Integração com IA" e insira sua chave da API do Google Gemini.
-    *   **AVISO DE SEGURANÇA**: O método atual envia a chave da API para o frontend. Em um ambiente de produção de alta segurança, o ideal seria que a chamada para a API Gemini fosse feita diretamente pelo backend PHP para não expor a chave. A implementação atual foi mantida para simplificar o deploy em servidores compartilhados.
 *   **Configurações de E-mail (SMTP)**: Configure os dados do seu servidor de e-mail nas Configurações do sistema para habilitar o envio de notificações (funcionalidade futura).
