@@ -25,6 +25,7 @@ require_once 'handlers/course_handlers.php';
 require_once 'handlers/enrollment_handlers.php';
 require_once 'handlers/financial_handlers.php';
 require_once 'handlers/system_handlers.php';
+require_once 'handlers/ai_handlers.php'; // Adicionado novo handler
 
 try {
     // Mapeamento de ações para funções
@@ -65,6 +66,8 @@ try {
         'getSystemSettings' => 'handle_get_system_settings',
         'updateSystemSettings' => 'handle_update_system_settings',
         'exportDatabase' => 'handle_export_database',
+        // AI
+        'generateAiDescription' => 'handle_generate_ai_description', // Adicionada nova ação
     ];
 
     if (isset($actionMap[$action]) && function_exists($actionMap[$action])) {

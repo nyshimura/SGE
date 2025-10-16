@@ -157,7 +157,7 @@ export async function handleUpdateSchoolProfile(event) {
     }
     try {
         const data = await apiCall('updateSchoolProfile', { profileData });
-        appState.schoolProfile = data.profile; // Atualiza o perfil da escola no estado
+        appState.schoolProfile = data.profile;
         alert('Dados da unidade atualizados com sucesso!');
         handleNavigateBackToDashboard();
     } catch (e) { /* handled by apiCall */ }
@@ -178,6 +178,7 @@ export async function handleUpdateSystemSettings(event) {
         currencySymbol: elements.namedItem('currencySymbol').value,
         defaultDueDay: elements.namedItem('defaultDueDay').value,
         geminiApiKey: elements.namedItem('geminiApiKey').value || null,
+        geminiApiEndpoint: elements.namedItem('geminiApiEndpoint').value || null,
         smtpServer: elements.namedItem('smtpServer').value,
         smtpPort: elements.namedItem('smtpPort').value,
         smtpUser: elements.namedItem('smtpUser').value,
@@ -316,11 +317,9 @@ export async function handleReactivateEnrollment(studentId, courseId) {
     }
 }
 
-// <<< CORREÇÃO AQUI >>>
 export async function handleUpdateEnrollmentDetails(event, studentId, courseId) {
-    event.preventDefault(); // Impede qualquer comportamento padrão do formulário
+    event.preventDefault();
     
-    // Pega os valores diretamente dos inputs pelos seus IDs únicos
     const scholarshipInput = document.getElementById(`scholarship-${courseId}`);
     const customFeeInput = document.getElementById(`customFee-${courseId}`);
 
@@ -334,9 +333,9 @@ export async function handleUpdateEnrollmentDetails(event, studentId, courseId) 
     try {
         const result = await apiCall('updateEnrollmentDetails', data);
         alert(result.message || 'Detalhes da matrícula atualizados com sucesso.');
-        render(); // Re-renderiza a view para mostrar os dados financeiros atualizados
+        render(); 
     } catch (e) {
-        // erro já tratado pela apiCall
+        // error handled by apiCall
     }
 }
 
@@ -477,17 +476,14 @@ export async function handleGenerateDescription(formId) {
     generateButton.textContent = 'Gerando...';
 
     try {
-        const { GoogleGenerativeAI } = await import('@google/genai');
-        const genAI = new GoogleGenerativeAI(appState.systemSettings.geminiApiKey);
-        const model = genAI.getGenerativeModel({ model: "gemini-pro" });
-        const prompt = `Crie uma descrição concisa e atrativa para um curso chamado "${courseName}". A descrição deve ter no máximo 3 frases e destacar os principais benefícios ou o público-alvo.`;
-        const result = await model.generateContent(prompt);
-        const response = await result.response;
-        const text = response.text();
-        descriptionTextarea.value = text.trim();
+        const data = await apiCall('generateAiDescription', { courseName });
+        if (data && data.description) {
+            descriptionTextarea.value = data.description;
+        } else {
+            throw new Error('A resposta da API não continha uma descrição.');
+        }
     } catch (error) {
         console.error("AI description generation failed:", error);
-        alert("Ocorreu um erro ao gerar a descrição com IA. Verifique sua chave de API e a conexão.");
     } finally {
         generateButton.disabled = false;
         generateButton.textContent = 'Gerar com IA ✨';

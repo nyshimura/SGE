@@ -63,26 +63,30 @@ export async function renderSystemSettingsView() {
                         <div class="form-group">
                            <label for="geminiApiKey">Chave da API do Gemini</label>
                            <input type="password" id="geminiApiKey" name="geminiApiKey" value="${settings.geminiApiKey || ''}">
-                           <small>A chamada para a API é feita de forma segura pelo servidor. Deixe em branco para desativar a função de geração de descrição de cursos.</small>
+                        </div>
+                        <div class="form-group">
+                           <label for="geminiApiEndpoint">URL do Endpoint da API</label>
+                           <input type="text" id="geminiApiEndpoint" name="geminiApiEndpoint" value="${settings.geminiApiEndpoint || ''}">
+                           <small>Ex: https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent</small>
                         </div>
                     </div>
                     <div class="settings-section">
                         <h3 class="card-title">✉️ E-mail (SMTP)</h3>
                         <div class="form-group">
                             <label for="smtpServer">Servidor SMTP</label>
-                            <input type="text" id="smtpServer" name="smtpServer" value="${settings.smtpServer}">
+                            <input type="text" id="smtpServer" name="smtpServer" value="${settings.smtpServer || ''}">
                         </div>
                         <div class="form-group">
                             <label for="smtpPort">Porta</label>
-                            <input type="text" id="smtpPort" name="smtpPort" value="${settings.smtpPort}">
+                            <input type="text" id="smtpPort" name="smtpPort" value="${settings.smtpPort || ''}">
                         </div>
                         <div class="form-group">
                             <label for="smtpUser">Usuário</label>
-                            <input type="text" id="smtpUser" name="smtpUser" value="${settings.smtpUser}">
+                            <input type="text" id="smtpUser" name="smtpUser" value="${settings.smtpUser || ''}">
                         </div>
                         <div class="form-group">
                             <label for="smtpPass">Senha</label>
-                            <input type="password" id="smtpPass" name="smtpPass" value="${settings.smtpPass}">
+                            <input type="password" id="smtpPass" name="smtpPass" value="${settings.smtpPass || ''}">
                         </div>
                     </div>
                     <div class="settings-section">

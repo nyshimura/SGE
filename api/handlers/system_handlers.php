@@ -7,15 +7,16 @@ function handle_get_school_profile($conn, $data) {
 }
 
 function handle_update_school_profile($conn, $data) {
-    $profileData = $data['profileData'];
+    // CORREÇÃO: Acessa os dados diretamente do array aninhado 'profileData'
+    $profileData = $data['profileData']; 
     $sql = "UPDATE school_profile SET name = ?, cnpj = ?, address = ?, phone = ?, pixKeyType = ?, pixKey = ?";
     $params = [
-        isset($profileData['name']) ? $profileData['name'] : null,
-        isset($profileData['cnpj']) ? $profileData['cnpj'] : null,
-        isset($profileData['address']) ? $profileData['address'] : null,
-        isset($profileData['phone']) ? $profileData['phone'] : null,
-        isset($profileData['pixKeyType']) ? $profileData['pixKeyType'] : null,
-        isset($profileData['pixKey']) ? $profileData['pixKey'] : null
+        $profileData['name'] ?? null,
+        $profileData['cnpj'] ?? null,
+        $profileData['address'] ?? null,
+        $profileData['phone'] ?? null,
+        $profileData['pixKeyType'] ?? null,
+        $profileData['pixKey'] ?? null
     ];
     if (!empty($profileData['profilePicture'])) {
         $sql .= ", profilePicture = ?";
@@ -36,19 +37,28 @@ function handle_get_system_settings($conn, $data) {
 }
 
 function handle_update_system_settings($conn, $data) {
+    // CORREÇÃO: Acessa os dados do array aninhado 'settingsData'
     $settingsData = $data['settingsData'];
     $sql = "UPDATE system_settings SET 
                 language = ?, timeZone = ?, currencySymbol = ?, defaultDueDay = ?,
-                geminiApiKey = ?,
+                geminiApiKey = ?, geminiApiEndpoint = ?,
                 smtpServer = ?, smtpPort = ?, smtpUser = ?, smtpPass = ?,
                 enableTerminationFine = ?, terminationFineMonths = ?
             WHERE id = 1";
     $stmt = $conn->prepare($sql);
     $stmt->execute([
-        $settingsData['language'], $settingsData['timeZone'], $settingsData['currencySymbol'], $settingsData['defaultDueDay'],
+        $settingsData['language'], 
+        $settingsData['timeZone'], 
+        $settingsData['currencySymbol'], 
+        $settingsData['defaultDueDay'],
         $settingsData['geminiApiKey'],
-        $settingsData['smtpServer'], $settingsData['smtpPort'], $settingsData['smtpUser'], $settingsData['smtpPass'],
-        $settingsData['enableTerminationFine'], $settingsData['terminationFineMonths']
+        $settingsData['geminiApiEndpoint'], // Adicionado o novo campo
+        $settingsData['smtpServer'], 
+        $settingsData['smtpPort'], 
+        $settingsData['smtpUser'], 
+        $settingsData['smtpPass'],
+        $settingsData['enableTerminationFine'], 
+        $settingsData['terminationFineMonths']
     ]);
     send_response(true, ['message' => 'Configurações salvas.']);
 }

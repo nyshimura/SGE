@@ -198,6 +198,13 @@ main {
     color: var(--text-color);
 }
 
+.form-group small {
+  display: block; /* Garante que o elemento ocupe a largura disponível */
+  overflow-wrap: break-word; /* Força a quebra de palavras/textos longos */
+  word-wrap: break-word;     /* Compatibilidade com navegadores mais antigos */
+  line-height: 1.4;          /* Melhora a legibilidade se o texto tiver várias linhas */
+}
+
 input:-webkit-autofill,
 input:-webkit-autofill:hover,
 input:-webkit-autofill:focus,
