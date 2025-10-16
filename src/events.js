@@ -155,6 +155,14 @@ export async function handleUpdateSchoolProfile(event) {
     if (schoolPicFile && schoolPicFile.size > 0) {
         profileData.profilePicture = await fileToBase64(schoolPicFile);
     }
+    
+    // Processa a imagem da assinatura
+    const signatureFile = formData.get('signatureImage');
+    if (signatureFile && signatureFile.size > 0) {
+        profileData.signatureImage = await fileToBase64(signatureFile);
+    }
+    // FIM NOVO
+
     try {
         const data = await apiCall('updateSchoolProfile', { profileData });
         appState.schoolProfile = data.profile;
@@ -243,6 +251,18 @@ export function previewSchoolImage(event) {
     }
 }
 
+export function previewSignatureImage(event) {
+    const input = event.target;
+    const preview = document.getElementById('signature-preview');
+    if (input.files && input.files[0]) {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            if (e.target?.result) preview.src = e.target.result;
+        };
+        reader.readAsDataURL(input.files[0]);
+    }
+}
+
 export async function handleRoleChange(event, userId) {
     const newRole = event.target.value;
     try {
@@ -280,7 +300,6 @@ export function handleDefaultersReportChangeMonth(direction) {
     render();
 }
 
-// <<< NOVAS FUNÇÕES ADICIONADAS AQUI >>>
 export function handleDefaultersReportCourseChange(event) {
     appState.financialState.defaultersReportCourseId = event.target.value;
     render();
@@ -303,7 +322,7 @@ export async function handleBulkPay(event) {
             alert(result.message || 'Pagamentos atualizados com sucesso!');
             render();
         } catch (e) {
-            // erro já tratado pela apiCall
+            // error handled by apiCall
         }
     }
 }
@@ -378,6 +397,12 @@ export async function handleUpdateEnrollmentDetails(event, studentId, courseId) 
     } catch (e) {
         // error handled by apiCall
     }
+}
+
+
+export function handleGenerateReceipt(paymentId) {
+    const url = `api/index.php?action=generateReceipt&paymentId=${paymentId}`;
+    window.open(url, '_blank');
 }
 
 

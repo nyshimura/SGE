@@ -62,7 +62,20 @@ export async function renderSchoolProfileView() {
                         <label for="schoolAddress">Endereço da Unidade</label>
                         <textarea id="schoolAddress" name="address" rows="3" required>${profile.address}</textarea>
                     </div>
-                    <button type="submit" class="action-button">Salvar Alterações</button>
+                    
+                    <h3 class="card-title" style="margin-top: 2rem;">Carimbo / Assinatura Digital (para Recibos)</h3>
+
+                    <div class="profile-pic-container" style="align-items: flex-start; border: 1px solid var(--border-color); padding: 1rem; border-radius: 8px;">
+                        <div style="width: 100%; text-align: center;">
+                             <img id="signature-preview" style="max-width: 150px; max-height: 100px; object-fit: contain;" src="${profile.signatureImage || 'https://via.placeholder.com/150/f3f4f6/4b5563?text=Nenhuma+Assinatura'}" alt="Assinatura Digital">
+                        </div>
+                        <div class="form-group" style="width: 100%;">
+                            <label for="signatureImage">Substituir Carimbo/Assinatura (PNG Transparente recomendado)</label>
+                            <input type="file" id="signatureImage" name="signatureImage" accept="image/png, image/jpeg" onchange="window.previewSignatureImage(event)">
+                        </div>
+                    </div>
+
+                    <button type="submit" class="action-button" style="margin-top: 2rem;">Salvar Alterações</button>
                 </div>
             </form>
         </div>

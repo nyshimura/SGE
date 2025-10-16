@@ -36,7 +36,11 @@ export function renderStudentFinancialHistory(studentId, studentPayments, isAdmi
                            const dueDate = new Date(p.dueDate + 'T00:00:00');
                            let actionHtml = '<td>-</td>';
                            
-                           if (allowActions) {
+                           if (p.status === 'Pago') {
+                               // Se estiver pago, mostra o botão de gerar recibo
+                               actionHtml = `<td><button type="button" class="action-button" onclick="window.handleGenerateReceipt(${p.id})">Gerar Recibo</button></td>`;
+                           } else if (allowActions) {
+                               // Se for admin e não estiver pago, mostra o seletor de status
                                actionHtml = `<td>
                                  <select class="payment-status-select" onchange="window.handlePaymentStatusChange(event, ${p.id})">
                                     <option value="Pendente" ${p.status === 'Pendente' ? 'selected' : ''}>Pendente</option>
@@ -46,6 +50,7 @@ export function renderStudentFinancialHistory(studentId, studentPayments, isAdmi
                                  </select>
                                </td>`;
                            } else if ((p.status === 'Pendente' || p.status === 'Atrasado')) {
+                               // Se for aluno e estiver pendente, mostra o botão de pagar com PIX
                                actionHtml = `<td><button class="action-button" onclick="window.handleInitiatePixPayment([${p.id}])">Pagar com PIX</button></td>`;
                            }
 
