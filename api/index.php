@@ -3,13 +3,15 @@
  * Ponto de Entrada da API (Roteador Principal)
  */
 
+// A configuração de erros está centralizada no config.php
+
 require_once 'config.php';
 
 // --- FUNÇÃO AUXILIAR PARA ENVIAR RESPOSTAS ---
 function send_response($success, $data, $statusCode = 200) {
     http_response_code($statusCode);
     header('Content-Type: application/json; charset=UTF-8');
-    echo json_encode(['success' => $success, 'data' => $data]);
+    echo json_encode(['success' => $success, 'data' => $data], JSON_UNESCAPED_UNICODE);
     exit();
 }
 
@@ -26,6 +28,7 @@ require_once 'handlers/enrollment_handlers.php';
 require_once 'handlers/financial_handlers.php';
 require_once 'handlers/system_handlers.php';
 require_once 'handlers/ai_handlers.php'; 
+require_once 'handlers/receipt_handler.php';
 
 try {
     // Mapeamento de ações para funções
@@ -61,7 +64,8 @@ try {
         'getStudentPayments' => 'handle_get_student_payments',
         'updatePaymentStatus' => 'handle_update_payment_status',
         'getDefaultersReport' => 'handle_get_defaulters_report',
-        'bulkUpdatePaymentStatus' => 'handle_bulk_update_payment_status', // <-- NOVA AÇÃO
+        'bulkUpdatePaymentStatus' => 'handle_bulk_update_payment_status',
+        'generateReceipt' => 'handle_generate_receipt',
         // System & School
         'getSchoolProfile' => 'handle_get_school_profile',
         'updateSchoolProfile' => 'handle_update_school_profile',
@@ -73,7 +77,7 @@ try {
     ];
 
     if (isset($actionMap[$action]) && function_exists($actionMap[$action])) {
-        $params = $_SERVER['REQUEST_METHOD'] === 'GET' ? $_GET : $input;
+        $params = ($action === 'generateReceipt') ? $_GET : ($_SERVER['REQUEST_METHOD'] === 'GET' ? $_GET : $input);
         call_user_func($actionMap[$action], $conn, $params);
     } else {
         send_response(false, 'Ação desconhecida ou não especificada: ' . htmlspecialchars($action), 400);
