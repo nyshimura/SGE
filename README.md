@@ -35,21 +35,7 @@ Siga estes passos para colocar o sistema em produção.
     ```
 2.  **Faça o Upload**: Envie a pasta `api` inteira para a raiz do seu servidor web (ex: para a pasta `public_html`).
 
-### Passo 3: Compilar (Build) e Fazer Upload do Frontend
 
-Este passo deve ser feito na sua máquina local (ou na sua VM Linux Mint).
-
-1.  **Instale as Dependências**: Abra um terminal na pasta do projeto e execute:
-    ```bash
-    npm install
-    ```
-2.  **Crie o Build de Produção**: Execute o seguinte comando para compilar e otimizar os arquivos do frontend:
-    ```bash
-    npm run build
-    ```
-    Este comando criará uma nova pasta chamada `dist` no seu projeto.
-
-3.  **Faça o Upload dos Arquivos Compilados**: Envie **todo o conteúdo** da pasta `dist` para a raiz do seu servidor web (a mesma pasta onde você colocou a pasta `api`).
 
 ### Passo 4: Acessar a Aplicação
 
@@ -61,4 +47,4 @@ Após o upload de todos os arquivos, você pode acessar seu site pelo seu domín
 
 ## Configurações Adicionais (Opcional)
 
-*   **Configurações de E-mail (SMTP)**: Configure os dados do seu servidor de e-mail nas Configurações do sistema para habilitar o envio de notificações (funcionalidade futura).
+

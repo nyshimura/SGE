@@ -1,15 +1,16 @@
 <?php
 function handle_create_course($conn, $data) {
-    $name = trim($data['courseName']);
-    $description = trim($data['courseDescription']);
-    $teacherId = filter_var($data['teacherId'], FILTER_VALIDATE_INT);
-    $totalSlots = !empty($data['totalSlots']) ? filter_var($data['totalSlots'], FILTER_VALIDATE_INT) : null;
-    $monthlyFee = filter_var($data['monthlyFee'], FILTER_VALIDATE_FLOAT);
-    $paymentType = $data['paymentType'];
-    $installments = ($paymentType === 'parcelado' && !empty($data['installments'])) ? filter_var($data['installments'], FILTER_VALIDATE_INT) : null;
-    $dayOfWeek = !empty($data['dayOfWeek']) ? trim($data['dayOfWeek']) : null;
-    $startTime = !empty($data['startTime']) ? trim($data['startTime']) : null;
-    $endTime = !empty($data['endTime']) ? trim($data['endTime']) : null;
+    $courseData = $data['courseData'];
+    $name = trim($courseData['courseName']);
+    $description = trim($courseData['courseDescription']);
+    $teacherId = filter_var($courseData['teacherId'], FILTER_VALIDATE_INT);
+    $totalSlots = !empty($courseData['totalSlots']) ? filter_var($courseData['totalSlots'], FILTER_VALIDATE_INT) : null;
+    $monthlyFee = filter_var($courseData['monthlyFee'], FILTER_VALIDATE_FLOAT);
+    $paymentType = $courseData['paymentType'];
+    $installments = ($paymentType === 'parcelado' && !empty($courseData['installments'])) ? filter_var($courseData['installments'], FILTER_VALIDATE_INT) : null;
+    $dayOfWeek = !empty($courseData['dayOfWeek']) ? trim($courseData['dayOfWeek']) : null;
+    $startTime = !empty($courseData['startTime']) ? trim($courseData['startTime']) : null;
+    $endTime = !empty($courseData['endTime']) ? trim($courseData['endTime']) : null;
 
     $sql = "INSERT INTO courses (name, description, teacherId, totalSlots, status, monthlyFee, paymentType, installments, dayOfWeek, startTime, endTime) 
             VALUES (?, ?, ?, ?, 'Aberto', ?, ?, ?, ?, ?, ?)";
@@ -20,17 +21,18 @@ function handle_create_course($conn, $data) {
 }
 
 function handle_update_course($conn, $data) {
-    $courseId = filter_var($data['courseId'], FILTER_VALIDATE_INT);
-    $name = trim($data['courseName']);
-    $description = trim($data['courseDescription']);
-    $teacherId = filter_var($data['teacherId'], FILTER_VALIDATE_INT);
-    $totalSlots = !empty($data['totalSlots']) ? filter_var($data['totalSlots'], FILTER_VALIDATE_INT) : null;
-    $monthlyFee = filter_var($data['monthlyFee'], FILTER_VALIDATE_FLOAT);
-    $paymentType = $data['paymentType'];
-    $installments = ($paymentType === 'parcelado' && !empty($data['installments'])) ? filter_var($data['installments'], FILTER_VALIDATE_INT) : null;
-    $dayOfWeek = !empty($data['dayOfWeek']) ? trim($data['dayOfWeek']) : null;
-    $startTime = !empty($data['startTime']) ? trim($data['startTime']) : null;
-    $endTime = !empty($data['endTime']) ? trim($data['endTime']) : null;
+    $courseData = $data['courseData'];
+    $courseId = filter_var($courseData['courseId'], FILTER_VALIDATE_INT);
+    $name = trim($courseData['courseName']);
+    $description = trim($courseData['courseDescription']);
+    $teacherId = filter_var($courseData['teacherId'], FILTER_VALIDATE_INT);
+    $totalSlots = !empty($courseData['totalSlots']) ? filter_var($courseData['totalSlots'], FILTER_VALIDATE_INT) : null;
+    $monthlyFee = filter_var($courseData['monthlyFee'], FILTER_VALIDATE_FLOAT);
+    $paymentType = $courseData['paymentType'];
+    $installments = ($paymentType === 'parcelado' && !empty($courseData['installments'])) ? filter_var($courseData['installments'], FILTER_VALIDATE_INT) : null;
+    $dayOfWeek = !empty($courseData['dayOfWeek']) ? trim($courseData['dayOfWeek']) : null;
+    $startTime = !empty($courseData['startTime']) ? trim($courseData['startTime']) : null;
+    $endTime = !empty($courseData['endTime']) ? trim($courseData['endTime']) : null;
 
     $sql = "UPDATE courses SET name = ?, description = ?, teacherId = ?, totalSlots = ?, monthlyFee = ?, paymentType = ?, installments = ?, dayOfWeek = ?, startTime = ?, endTime = ?
             WHERE id = ?";
@@ -93,14 +95,8 @@ function handle_get_attendance_data($conn, $data) {
     $rawHistory = $stmtHistory->fetchAll();
     $history = [];
     foreach ($rawHistory as $row) {
-        if (!isset($history[$row['date']])) {
-            $history[$row['date']] = ['presentes' => 0, 'faltas' => 0];
-        }
-        if ($row['status'] === 'Presente') {
-            $history[$row['date']]['presentes'] = $row['count'];
-        } else {
-            $history[$row['date']]['faltas'] = $row['count'];
-        }
+        if (!isset($history[$row['date']])) { $history[$row['date']] = ['presentes' => 0, 'faltas' => 0]; }
+        if ($row['status'] === 'Presente') { $history[$row['date']]['presentes'] = $row['count']; } else { $history[$row['date']]['faltas'] = $row['count']; }
     }
     send_response(true, ['course' => $course, 'students' => $students, 'recordsForDate' => $recordsForDate, 'history' => $history]);
 }

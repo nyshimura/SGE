@@ -15,33 +15,35 @@ export function renderStudentView(studentId, data) {
       html: `
         <div class="card" id="student-courses" draggable="true" ondragstart="window.handleDragStart(event)" ondragend="window.handleDragEnd(event)">
             <h3 class="card-title">📚 Meus Cursos e Matrículas</h3>
-            <ul class="list">
-                ${myEnrollments.map((enrollment) => {
-                    const course = allCourses.find((c) => c.id === enrollment.courseId);
-                    if (!course) return ''; 
-                    
-                    const teacher = data.teachers.find((t) => t.id === course.teacherId);
-                    
-                    let actionButton = '';
-                    if (enrollment.status === 'Aprovada') {
-                        actionButton = `<button class="action-button danger" onclick="window.handleCancelEnrollment(${student.id}, ${course.id})">Trancar Matrícula</button>`;
-                    }
+            <div class="list-wrapper">
+                <ul class="list">
+                    ${myEnrollments.map((enrollment) => {
+                        const course = allCourses.find((c) => c.id === enrollment.courseId);
+                        if (!course) return ''; 
+                        
+                        const teacher = data.teachers.find((t) => t.id === course.teacherId);
+                        
+                        let actionButton = '';
+                        if (enrollment.status === 'Aprovada') {
+                            actionButton = `<button class="action-button danger" onclick="window.handleCancelEnrollment(${student.id}, ${course.id})">Trancar Matrícula</button>`;
+                        }
 
-                    return `
-                        <li class="list-item">
-                            <div class="list-item-content">
-                                <span class="list-item-title">${course.name}</span>
-                                <span class="list-item-subtitle">Professor: ${teacher?.firstName} ${teacher?.lastName || ''}</span>
-                            </div>
-                            <div class="list-item-actions">
-                                <button class="action-button secondary" onclick="window.handleNavigateToCourseDetails(${course.id})">Detalhes</button>
-                                <span class="status-badge status-${enrollment.status.toLowerCase()}">${enrollment.status}</span>
-                                ${actionButton}
-                            </div>
-                        </li>
-                    `;
-                }).join('') || '<li>Nenhuma matrícula encontrada.</li>'}
-            </ul>
+                        return `
+                            <li class="list-item">
+                                <div class="list-item-content">
+                                    <span class="list-item-title">${course.name}</span>
+                                    <span class="list-item-subtitle">Professor: ${teacher?.firstName} ${teacher?.lastName || ''}</span>
+                                </div>
+                                <div class="list-item-actions">
+                                    <button class="action-button secondary" onclick="window.handleNavigateToCourseDetails(${course.id})">Detalhes</button>
+                                    <span class="status-badge status-${enrollment.status.toLowerCase()}">${enrollment.status}</span>
+                                    ${actionButton}
+                                </div>
+                            </li>
+                        `;
+                    }).join('') || '<li>Nenhuma matrícula encontrada.</li>'}
+                </ul>
+            </div>
         </div>
       `
     },
@@ -50,29 +52,30 @@ export function renderStudentView(studentId, data) {
       html: `
         <div class="card" id="student-available-courses" draggable="true" ondragstart="window.handleDragStart(event)" ondragend="window.handleDragEnd(event)">
             <h3 class="card-title">🏫 Cursos Disponíveis para Inscrição</h3>
-            <ul class="list">
-                ${allCourses.filter(c => c.status === 'Aberto').map((course) => {
-                    // CORREÇÃO: Impede a exibição se o aluno já tiver uma matrícula ativa ou pendente
-                    const isEnrolled = myEnrollments.some((e) => e.courseId === course.id && (e.status === 'Aprovada' || e.status === 'Pendente'));
-                    if (isEnrolled) {
-                        return '';
-                    }
+            <div class="list-wrapper">
+                <ul class="list">
+                    ${allCourses.filter(c => c.status === 'Aberto').map((course) => {
+                        const isEnrolled = myEnrollments.some((e) => e.courseId === course.id && (e.status === 'Aprovada' || e.status === 'Pendente'));
+                        if (isEnrolled) {
+                            return '';
+                        }
 
-                    const teacher = data.teachers.find((t) => t.id === course.teacherId);
-                    return `
-                        <li class="list-item">
-                            <div class="list-item-content">
-                                <span class="list-item-title">${course.name}</span>
-                                <span class="list-item-subtitle">Professor: ${teacher?.firstName} ${teacher?.lastName || ''}</span>
-                            </div>
-                            <div class="list-item-actions">
-                                <button class="action-button secondary" onclick="window.handleNavigateToCourseDetails(${course.id})">Detalhes</button>
-                                <button class="action-button" data-course-id="${course.id}" onclick="window.handleEnroll(event)">Inscreva-se Agora</button>
-                            </div>
-                        </li>
-                    `;
-                }).join('') || '<li>Nenhum novo curso disponível no momento.</li>'}
-            </ul>
+                        const teacher = data.teachers.find((t) => t.id === course.teacherId);
+                        return `
+                            <li class="list-item">
+                                <div class="list-item-content">
+                                    <span class="list-item-title">${course.name}</span>
+                                    <span class="list-item-subtitle">Professor: ${teacher?.firstName} ${teacher?.lastName || ''}</span>
+                                </div>
+                                <div class="list-item-actions">
+                                    <button class="action-button secondary" onclick="window.handleNavigateToCourseDetails(${course.id})">Detalhes</button>
+                                    <button class="action-button" data-course-id="${course.id}" onclick="window.handleEnroll(event)">Inscreva-se Agora</button>
+                                </div>
+                            </li>
+                        `;
+                    }).join('') || '<li>Nenhum novo curso disponível no momento.</li>'}
+                </ul>
+            </div>
         </div>
       `
     },

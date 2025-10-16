@@ -44,22 +44,24 @@ export function renderAdminView(adminId, data) {
           html: `
             <div class="card" id="admin-manage-courses" draggable="true" ondragstart="window.handleDragStart(event)" ondragend="window.handleDragEnd(event)">
                 <h3 class="card-title">⚙️ Gerenciar Cursos</h3>
-                <ul class="list">
-                    ${allCourses.map((course) => `
-                        <li class="list-item">
-                            <div class="list-item-content">
-                                <span class="list-item-title">${course.name}</span>
-                                <span class="status-badge status-${course.status.toLowerCase()}">${course.status}</span>
-                            </div>
-                             <div class="list-item-actions">
-                                <button class="action-button secondary" onclick="window.handleNavigateToCourseDetails(${course.id})">Detalhes</button>
-                                <button class="action-button" onclick="window.handleNavigateToEditCourse(${course.id})">Editar</button>
-                                ${course.status === 'Aberto' ? `<button class="action-button danger" onclick="window.handleEndCourse(${course.id})">Encerrar</button>` : ''}
-                                ${course.status === 'Encerrado' && admin.role === 'superadmin' ? `<button class="action-button" onclick="window.handleReopenCourse(${course.id})">Reabrir</button>` : ''}
-                            </div>
-                        </li>
-                    `).join('')}
-                </ul>
+                <div class="list-wrapper">
+                    <ul class="list">
+                        ${allCourses.map((course) => `
+                            <li class="list-item">
+                                <div class="list-item-content">
+                                    <span class="list-item-title">${course.name}</span>
+                                    <span class="status-badge status-${course.status.toLowerCase()}">${course.status}</span>
+                                </div>
+                                 <div class="list-item-actions">
+                                    <button class="action-button secondary" onclick="window.handleNavigateToCourseDetails(${course.id})">Detalhes</button>
+                                    <button class="action-button" onclick="window.handleNavigateToEditCourse(${course.id})">Editar</button>
+                                    ${course.status === 'Aberto' ? `<button class="action-button danger" onclick="window.handleEndCourse(${course.id})">Encerrar</button>` : ''}
+                                    ${course.status === 'Encerrado' && admin.role === 'superadmin' ? `<button class="action-button" onclick="window.handleReopenCourse(${course.id})">Reabrir</button>` : ''}
+                                </div>
+                            </li>
+                        `).join('')}
+                    </ul>
+                </div>
             </div>
           `
         },
@@ -68,35 +70,44 @@ export function renderAdminView(adminId, data) {
           html: `
             <div class="card" id="admin-pending-enrollments" draggable="true" ondragstart="window.handleDragStart(event)" ondragend="window.handleDragEnd(event)">
                 <h3 class="card-title">📬 Matrículas Pendentes (${pendingEnrollments.length})</h3>
-                <ul class="list">
-                    ${pendingEnrollments.length === 0 ? '<li>Nenhuma matrícula pendente.</li>' : pendingEnrollments.map((enrollment) => {
-                        const student = data.users.find((s) => s.id === enrollment.studentId);
-                        const course = allCourses.find((c) => c.id === enrollment.courseId);
-                        if (!student || !course) return '';
-                        const enrolledCount = data.enrollments.filter((e) => e.courseId === course.id && e.status === 'Aprovada').length;
-                        
-                        const vacancies = course.totalSlots === null
-                            ? 'Ilimitadas'
-                            : Math.max(0, course.totalSlots - enrolledCount);
-                        
-                        return `
-                        <li class="list-item">
-                            <div class="list-item-content">
-                                <span class="list-item-title">${student.firstName} ${student.lastName || ''} - ${course.name}</span>
-                                <span class="list-item-subtitle">Vagas restantes: ${vacancies}</span>
-                            </div>
-                            <form class="enrollment-approval-form" onsubmit="window.handleApprove(event)" data-student-id="${student.id}" data-course-id="${course.id}">
-                                <div class="form-group-inline">
-                                    <select name="billingStart" required>
-                                        <option value="this_month">Cobrar este mês</option>
-                                        <option value="next_month">Cobrar próximo mês</option>
-                                    </select>
-                                    <button type="submit" class="action-button">Aprovar</button>
+                <div class="list-wrapper">
+                    <ul class="list">
+                        ${pendingEnrollments.length === 0 ? '<li>Nenhuma matrícula pendente.</li>' : pendingEnrollments.map((enrollment) => {
+                            const student = data.users.find((s) => s.id === enrollment.studentId);
+                            const course = allCourses.find((c) => c.id === enrollment.courseId);
+                            if (!student || !course) return '';
+                            const enrolledCount = data.enrollments.filter((e) => e.courseId === course.id && e.status === 'Aprovada').length;
+                            
+                            const vacancies = course.totalSlots === null
+                                ? 'Ilimitadas'
+                                : Math.max(0, course.totalSlots - enrolledCount);
+                            
+                            // Define o valor da mensalidade a ser exibido: o personalizado (se houver) ou o padrão do curso.
+                            const feeValue = enrollment.overrideFee || course.monthlyFee;
+
+                            return `
+                            <li class="list-item">
+                                <div class="list-item-content">
+                                    <span class="list-item-title">${student.firstName} ${student.lastName || ''} - ${course.name}</span>
+                                    <span class="list-item-subtitle">Vagas restantes: ${vacancies}</span>
                                 </div>
-                            </form>
-                        </li>`
-                    }).join('')}
-                </ul>
+                                <form class="enrollment-approval-form" onsubmit="window.handleApprove(event)" data-student-id="${student.id}" data-course-id="${course.id}">
+                                    <div class="form-group-inline">
+                                        <label for="overrideFee-${enrollment.studentId}-${enrollment.courseId}">Mensalidade (R$):</label>
+                                        <input type="number" step="0.01" name="overrideFee" id="overrideFee-${enrollment.studentId}-${enrollment.courseId}" value="${feeValue}" required style="width: 100px;">
+                                    </div>
+                                    <div class="form-group-inline" style="margin-top: 0.5rem;">
+                                        <select name="billingStart" required>
+                                            <option value="this_month">Cobrar este mês</option>
+                                            <option value="next_month">Cobrar próximo mês</option>
+                                        </select>
+                                        <button type="submit" class="action-button">Aprovar</button>
+                                    </div>
+                                </form>
+                            </li>`
+                        }).join('')}
+                    </ul>
+                </div>
             </div>
           `
         },
@@ -105,16 +116,18 @@ export function renderAdminView(adminId, data) {
           html: `
             <div class="card" id="admin-attendance" draggable="true" ondragstart="window.handleDragStart(event)" ondragend="window.handleDragEnd(event)">
                 <h3 class="card-title">📋 Controle de Frequência</h3>
-                <ul class="list">
-                    ${openCourses.length === 0 ? '<li>Nenhum curso aberto.</li>' : openCourses.map((course) => `
-                        <li class="list-item">
-                             <div class="list-item-content">
-                                <span class="list-item-title">${course.name}</span>
-                            </div>
-                            <button class="action-button" onclick="window.handleNavigateToAttendance(${course.id})">Lançar Frequência</button>
-                        </li>
-                    `).join('')}
-                </ul>
+                <div class="list-wrapper">
+                    <ul class="list">
+                        ${openCourses.length === 0 ? '<li>Nenhum curso aberto.</li>' : openCourses.map((course) => `
+                            <li class="list-item">
+                                 <div class="list-item-content">
+                                    <span class="list-item-title">${course.name}</span>
+                                </div>
+                                <button class="action-button" onclick="window.handleNavigateToAttendance(${course.id})">Lançar Frequência</button>
+                            </li>
+                        `).join('')}
+                    </ul>
+                </div>
             </div>
           `
         }

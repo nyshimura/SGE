@@ -7,7 +7,7 @@ function handle_get_school_profile($conn, $data) {
 }
 
 function handle_update_school_profile($conn, $data) {
-    $profileData = $data;
+    $profileData = $data['profileData'];
     $sql = "UPDATE school_profile SET name = ?, cnpj = ?, address = ?, phone = ?, pixKeyType = ?, pixKey = ?";
     $params = [
         isset($profileData['name']) ? $profileData['name'] : null,
@@ -36,7 +36,7 @@ function handle_get_system_settings($conn, $data) {
 }
 
 function handle_update_system_settings($conn, $data) {
-    $settingsData = $data;
+    $settingsData = $data['settingsData'];
     $sql = "UPDATE system_settings SET 
                 language = ?, timeZone = ?, currencySymbol = ?, defaultDueDay = ?,
                 geminiApiKey = ?,

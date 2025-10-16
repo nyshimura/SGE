@@ -141,7 +141,7 @@ export async function handleUpdateProfile(event) {
     try {
         await apiCall('updateProfile', { userId, profileData });
         alert('Perfil atualizado com sucesso!');
-        handleNavigateBackToDashboard();
+        render();
     } catch (e) { /* handled by apiCall */ }
 };
 
@@ -296,9 +296,9 @@ export async function handleCancelEnrollment(studentId, courseId) {
         try {
             const result = await apiCall('cancelEnrollment', { studentId, courseId });
             alert(result.message || 'Matrícula trancada com sucesso.');
-            render(); // Apenas re-renderiza a view atual para mostrar a mudança
+            render(); 
         } catch (e) {
-            // O erro já é tratado e exibido pela função apiCall
+            // error handled by apiCall
         }
     }
 }
@@ -309,10 +309,34 @@ export async function handleReactivateEnrollment(studentId, courseId) {
         try {
             const result = await apiCall('reactivateEnrollment', { studentId, courseId });
             alert(result.message || 'Matrícula reativada com sucesso.');
-            render(); // Apenas re-renderiza a view atual para mostrar a mudança
+            render(); 
         } catch (e) {
-            // O erro já é tratado e exibido pela função apiCall
+            // error handled by apiCall
         }
+    }
+}
+
+// <<< CORREÇÃO AQUI >>>
+export async function handleUpdateEnrollmentDetails(event, studentId, courseId) {
+    event.preventDefault(); // Impede qualquer comportamento padrão do formulário
+    
+    // Pega os valores diretamente dos inputs pelos seus IDs únicos
+    const scholarshipInput = document.getElementById(`scholarship-${courseId}`);
+    const customFeeInput = document.getElementById(`customFee-${courseId}`);
+
+    const data = {
+        studentId: studentId,
+        courseId: courseId,
+        scholarshipPercentage: scholarshipInput.value,
+        customMonthlyFee: customFeeInput.value
+    };
+    
+    try {
+        const result = await apiCall('updateEnrollmentDetails', data);
+        alert(result.message || 'Detalhes da matrícula atualizados com sucesso.');
+        render(); // Re-renderiza a view para mostrar os dados financeiros atualizados
+    } catch (e) {
+        // erro já tratado pela apiCall
     }
 }
 
@@ -390,7 +414,6 @@ export async function handlePaymentStatusChange(event, paymentId) {
     const newStatus = event.target.value;
     try {
         await apiCall('updatePaymentStatus', { paymentId, status: newStatus });
-        // Recarrega os pagamentos do aluno expandido para refletir a mudança
         if (appState.financialState.expandedStudentId) {
             const data = await apiCall('getStudentPayments', { studentId: appState.financialState.expandedStudentId }, 'GET');
             appState.payments = data.payments;

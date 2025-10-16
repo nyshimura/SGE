@@ -34,22 +34,35 @@ export async function renderProfileView(userId) {
                     ${enrollments.map((e) => {
                         let actionButton = '';
                         if (e.status === 'Aprovada') {
-                            actionButton = `<button class="action-button danger" onclick="window.handleCancelEnrollment(${userId}, ${e.courseId})">Trancar</button>`;
+                            actionButton = `<button type="button" class="action-button danger" onclick="window.handleCancelEnrollment(${userId}, ${e.courseId})">Trancar</button>`;
                         } else if (e.status === 'Cancelada') {
-                            actionButton = `<button class="action-button" onclick="window.handleReactivateEnrollment(${userId}, ${e.courseId})">Reativar</button>`;
+                            actionButton = `<button type="button" class="action-button" onclick="window.handleReactivateEnrollment(${userId}, ${e.courseId})">Reativar</button>`;
                         }
 
+                        // <<< CORREÇÃO AQUI: Removido o <form> e alterado o botão
                         return `
                         <li class="list-item">
-                            <div class="list-item-content">
+                            <div style="display: flex; justify-content: space-between; align-items: center; width: 100%; flex-wrap: wrap; gap: 1rem;">
                                 <span class="list-item-title">${e.courseName || 'Curso não encontrado'}</span>
+                                <div class="list-item-actions">
+                                    <span class="status-badge status-${e.status.toLowerCase()}">${e.status}</span>
+                                    ${actionButton}
+                                </div>
                             </div>
-                            <div class="list-item-actions">
-                                <span class="status-badge status-${e.status.toLowerCase()}">${e.status}</span>
-                                ${actionButton}
+                            <div class="profile-grid">
+                                <div class="form-group">
+                                    <label for="scholarship-${e.courseId}">Bolsa (%)</label>
+                                    <input type="number" id="scholarship-${e.courseId}" name="scholarshipPercentage" min="0" max="100" step="0.01" value="${e.scholarshipPercentage || '0'}">
+                                </div>
+                                <div class="form-group">
+                                    <label for="customFee-${e.courseId}">Mensalidade Personalizada (R$)</label>
+                                    <input type="number" id="customFee-${e.courseId}" name="customMonthlyFee" min="0" step="0.01" placeholder="Padrão do curso" value="${e.customMonthlyFee || ''}">
+                                </div>
                             </div>
+                            <button type="button" class="action-button secondary" onclick="window.handleUpdateEnrollmentDetails(event, ${userId}, ${e.courseId})">Salvar Alterações da Matrícula</button>
                         </li>
-                    `}).join('')}
+                        `
+                    }).join('')}
                 </ul>
             `}
         `;
@@ -121,13 +134,14 @@ export async function renderProfileView(userId) {
                     </div>
 
                     ${isOwner ? `<button type="submit" class="action-button">Salvar Alterações</button>`: ''}
-
-                    <div class="admin-only-section">
-                       ${enrollmentsHtml}
-                       ${(userToView.role === 'student') ? renderStudentFinancialHistory(userId, data.payments, true, isAdminViewer) : ''}
-                    </div>
                 </div>
             </form>
+            
+            <div class="admin-only-section">
+                ${enrollmentsHtml}
+                ${(userToView.role === 'student') ? renderStudentFinancialHistory(userId, data.payments, true, isAdminViewer) : ''}
+            </div>
+
             ${changePasswordForm}
         </div>
     `;

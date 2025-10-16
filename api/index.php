@@ -54,6 +54,7 @@ try {
         'approveEnrollment' => 'handle_approve_enrollment',
         'cancelEnrollment' => 'handle_cancel_enrollment',
         'reactivateEnrollment' => 'handle_reactivate_enrollment',
+        'updateEnrollmentDetails' => 'handle_update_enrollment_details',
         // Financial
         'getFinancialDashboardData' => 'handle_get_financial_dashboard_data',
         'getStudentPayments' => 'handle_get_student_payments',

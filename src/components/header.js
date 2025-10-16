@@ -23,7 +23,7 @@ export function renderHeader(headerElement, appState) {
             <div class="header-content">
                 <h1>${logoHtml} ${appState.schoolProfile.name}</h1>
                 <div class="user-info">
-                    <span>Olá, ${currentUser.firstName}! (${currentUser.role})</span>
+                    <span>Olá, ${currentUser.firstName}!</span>
                     <button class="action-button secondary" onclick="window.handleNavigateToProfile(${currentUser.id})">Meu Perfil</button>
                     ${isAdmin ? `<button class="action-button secondary" onclick="window.handleNavigateToSchoolProfile()">Dados da UE</button>` : ''}
                     ${isSuperAdmin ? `<button class="action-button secondary" onclick="window.handleNavigateToSystemSettings()">Configurações</button>` : ''}

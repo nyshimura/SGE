@@ -39,7 +39,7 @@ function handle_get_profile_data($conn, $data) {
     $enrollments = [];
     $payments = [];
     if ($user) {
-        $stmtEnroll = $conn->prepare("SELECT e.status, e.courseId, c.name as courseName FROM enrollments e JOIN courses c ON e.courseId = c.id WHERE e.studentId = ?");
+        $stmtEnroll = $conn->prepare("SELECT e.status, e.courseId, c.name as courseName, e.scholarshipPercentage, e.customMonthlyFee FROM enrollments e JOIN courses c ON e.courseId = c.id WHERE e.studentId = ?");
         $stmtEnroll->execute([$userId]);
         $enrollments = $stmtEnroll->fetchAll();
         $stmtPay = $conn->prepare("SELECT * FROM payments WHERE studentId = ?");
