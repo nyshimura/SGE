@@ -1011,3 +1011,55 @@ footer {
     padding: 1rem;
   }
 }
+
+/* NOVO: Estilos para os botões de navegação de mês */
+.dashboard-controls {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+}
+
+.month-nav-button {
+    font-size: 1.2rem;
+    font-weight: bold;
+    padding: 0.4rem 0.8rem;
+    background-color: var(--subtle-bg);
+    border: 1px solid var(--border-color);
+    color: var(--text-color);
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+}
+
+.month-nav-button:hover {
+    background-color: var(--border-color);
+}
+
+/* NOVO: Estilos para o Relatório de Inadimplentes Interativo */
+
+/* Centraliza o checkbox na sua coluna da tabela */
+.payment-checkbox {
+  display: block; /* Permite o uso de margin auto */
+  margin: 0 auto; /* Centraliza horizontalmente */
+  width: 1.2rem;
+  height: 1.2rem;
+}
+
+/* Garante que o container principal de filtros quebre a linha em telas menores */
+.card > .dashboard-controls {
+    flex-wrap: wrap;
+    gap: 1.5rem; /* Adiciona um espaçamento quando os filtros quebram a linha */
+}
+
+/* Estilo para o novo select de curso para combinar com os outros inputs */
+#defaulters-course-selector {
+    padding: 0.6rem;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    background-color: var(--input-background);
+    color: var(--text-color);
+    font-family: inherit;
+    font-size: 0.9rem;
+    min-width: 200px; /* Evita que o seletor fique muito pequeno */
+}

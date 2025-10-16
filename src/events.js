@@ -55,7 +55,7 @@ export function handleLogout() {
         adminView: 'dashboard', viewingCourseId: null, viewingUserId: null,
         userFilters: { name: '', role: 'all', courseId: 'all', enrollmentStatus: 'all' },
         attendanceState: { courseId: null, selectedDate: new Date().toISOString().split('T')[0], students: [], history: {} },
-        financialState: { isDashboardVisible: false, isControlPanelVisible: false, selectedDate: new Date().toISOString().slice(0, 7), expandedStudentId: null },
+        financialState: { isDashboardVisible: false, isControlPanelVisible: false, isDefaultersReportVisible: false, selectedDate: new Date().toISOString().slice(0, 7), defaultersReportMonth: new Date().toISOString().slice(0, 7), defaultersReportCourseId: 'all', expandedStudentId: null },
         pixModal: { isOpen: false, paymentIds: [], content: null }
     });
     render();
@@ -190,7 +190,7 @@ export async function handleUpdateSystemSettings(event) {
     try {
         await apiCall('updateSystemSettings', { settingsData });
         alert('Configurações salvas com sucesso!');
-        appState.systemSettings = null; // Força recarregar na próxima vez
+        appState.systemSettings = null; 
         handleNavigateBackToDashboard();
     } catch(e) { /* handled by apiCall */ }
 }
@@ -214,7 +214,7 @@ export async function handleChangePassword(event) {
         alert('Senha alterada com sucesso!');
         form.reset();
     } catch (e) {
-        // O erro já é tratado e alertado pela função apiCall
+        // error handled by apiCall
     }
 }
 
@@ -267,6 +267,47 @@ export function handleDashboardDateChange(event) {
     appState.financialState.selectedDate = event.target.value;
     render();
 }
+
+export function handleDefaultersReportDateChange(event) {
+    appState.financialState.defaultersReportMonth = event.target.value;
+    render();
+}
+
+export function handleDefaultersReportChangeMonth(direction) {
+    const currentDate = new Date(appState.financialState.defaultersReportMonth + '-02');
+    currentDate.setMonth(currentDate.getMonth() + direction);
+    appState.financialState.defaultersReportMonth = currentDate.toISOString().slice(0, 7);
+    render();
+}
+
+// <<< NOVAS FUNÇÕES ADICIONADAS AQUI >>>
+export function handleDefaultersReportCourseChange(event) {
+    appState.financialState.defaultersReportCourseId = event.target.value;
+    render();
+}
+
+export async function handleBulkPay(event) {
+    event.preventDefault();
+    const form = event.target;
+    const formData = new FormData(form);
+    const paymentIds = formData.getAll('paymentIds').map(id => parseInt(id, 10));
+
+    if (paymentIds.length === 0) {
+        return alert('Nenhum pagamento foi selecionado.');
+    }
+
+    const confirmation = confirm(`Você tem certeza que deseja dar baixa em ${paymentIds.length} pagamento(s)?`);
+    if (confirmation) {
+        try {
+            const result = await apiCall('bulkUpdatePaymentStatus', { paymentIds });
+            alert(result.message || 'Pagamentos atualizados com sucesso!');
+            render();
+        } catch (e) {
+            // erro já tratado pela apiCall
+        }
+    }
+}
+
 
 export function handleAttendanceDateChange(event) {
     appState.attendanceState.selectedDate = event.target.value;
@@ -375,18 +416,23 @@ export function handleNavigateToSystemSettings() {
 };
 
 export function handleNavigateToProfile(userId) {
+    appState.financialState.isDashboardVisible = false;
+    appState.financialState.isControlPanelVisible = false;
+    appState.financialState.isDefaultersReportVisible = false;
+    
     appState.viewingUserId = userId;
     render();
 }
 
 export function handleNavigateToSchoolProfile() {
-    appState.viewingUserId = -1; // Flag especial para o perfil da escola
+    appState.viewingUserId = -1; 
     render();
 }
 
 export function handleNavigateToFinancialDashboard() {
     appState.financialState.isDashboardVisible = true;
     appState.financialState.isControlPanelVisible = false;
+    appState.financialState.isDefaultersReportVisible = false;
     appState.financialState.expandedStudentId = null;
     render();
 }
@@ -394,6 +440,14 @@ export function handleNavigateToFinancialDashboard() {
 export function handleNavigateToFinancialControlPanel() {
     appState.financialState.isDashboardVisible = false;
     appState.financialState.isControlPanelVisible = true;
+    appState.financialState.isDefaultersReportVisible = false;
+    render();
+}
+
+export function handleNavigateToDefaultersReport() {
+    appState.financialState.isDashboardVisible = false;
+    appState.financialState.isControlPanelVisible = false;
+    appState.financialState.isDefaultersReportVisible = true;
     render();
 }
 
@@ -416,6 +470,8 @@ export async function handlePaymentStatusChange(event, paymentId) {
         if (appState.financialState.expandedStudentId) {
             const data = await apiCall('getStudentPayments', { studentId: appState.financialState.expandedStudentId }, 'GET');
             appState.payments = data.payments;
+        } else if (appState.financialState.isDefaultersReportVisible) {
+            render();
         }
         render();
     } catch(e) { /* handled by apiCall */ }
@@ -515,6 +571,7 @@ export function handleNavigateBackToDashboard() {
     appState.attendanceState.courseId = null;
     appState.financialState.isDashboardVisible = false;
     appState.financialState.isControlPanelVisible = false;
+    appState.financialState.isDefaultersReportVisible = false;
     appState.adminView = 'dashboard';
     render();
 };

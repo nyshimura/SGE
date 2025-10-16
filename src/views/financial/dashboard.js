@@ -47,7 +47,10 @@ export async function renderFinancialDashboardView() {
         
          <div class="card full-width">
             <h3 class="card-title">Ações</h3>
-            <button class="action-button" onclick="window.handleNavigateToFinancialControlPanel()">Gerenciar Pagamentos dos Alunos</button>
+            <div class="list-item-actions" style="justify-content: flex-start;">
+                <button class="action-button" onclick="window.handleNavigateToFinancialControlPanel()">Gerenciar Pagamentos</button>
+                <button class="action-button secondary" onclick="window.handleNavigateToDefaultersReport()">Relatório de Inadimplentes</button>
+            </div>
         </div>
 
         <div class="charts-grid three-cols">

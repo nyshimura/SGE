@@ -25,7 +25,7 @@ require_once 'handlers/course_handlers.php';
 require_once 'handlers/enrollment_handlers.php';
 require_once 'handlers/financial_handlers.php';
 require_once 'handlers/system_handlers.php';
-require_once 'handlers/ai_handlers.php'; // Adicionado novo handler
+require_once 'handlers/ai_handlers.php'; 
 
 try {
     // Mapeamento de ações para funções
@@ -60,6 +60,8 @@ try {
         'getFinancialDashboardData' => 'handle_get_financial_dashboard_data',
         'getStudentPayments' => 'handle_get_student_payments',
         'updatePaymentStatus' => 'handle_update_payment_status',
+        'getDefaultersReport' => 'handle_get_defaulters_report',
+        'bulkUpdatePaymentStatus' => 'handle_bulk_update_payment_status', // <-- NOVA AÇÃO
         // System & School
         'getSchoolProfile' => 'handle_get_school_profile',
         'updateSchoolProfile' => 'handle_update_school_profile',
@@ -67,7 +69,7 @@ try {
         'updateSystemSettings' => 'handle_update_system_settings',
         'exportDatabase' => 'handle_export_database',
         // AI
-        'generateAiDescription' => 'handle_generate_ai_description', // Adicionada nova ação
+        'generateAiDescription' => 'handle_generate_ai_description',
     ];
 
     if (isset($actionMap[$action]) && function_exists($actionMap[$action])) {

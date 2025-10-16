@@ -35,7 +35,10 @@ export const appState = {
     financialState: {
         isDashboardVisible: false,
         isControlPanelVisible: false,
+        isDefaultersReportVisible: false,
         selectedDate: new Date().toISOString().slice(0, 7),
+        defaultersReportMonth: new Date().toISOString().slice(0, 7),
+        defaultersReportCourseId: 'all', // <-- NOVA LINHA ADICIONADA
         expandedStudentId: null,
     },
     pixModal: {

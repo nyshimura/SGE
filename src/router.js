@@ -13,6 +13,7 @@ import { renderCourseDetailsView } from './views/course/details.js';
 import { renderAttendanceManagementView } from './views/course/attendance.js';
 import { renderFinancialControlPanelView } from './views/financial/controlPanel.js';
 import { renderFinancialDashboardView } from './views/financial/dashboard.js';
+import { renderDefaultersReportView } from './views/financial/defaultersReport.js'; // <-- NOVA IMPORTAÇÃO
 import { applyCardOrder } from './utils/helpers.js';
 
 const appRoot = document.getElementById('app-root');
@@ -57,7 +58,9 @@ export async function render() {
   }
   
   // Views de usuário logado
-  if (financialState.isControlPanelVisible) {
+  if (financialState.isDefaultersReportVisible) { // <-- NOVA LÓGICA ADICIONADA AQUI
+      appRoot.innerHTML = await renderDefaultersReportView();
+  } else if (financialState.isControlPanelVisible) {
       appRoot.innerHTML = await renderFinancialControlPanelView();
   } else if (financialState.isDashboardVisible) {
       appRoot.innerHTML = await renderFinancialDashboardView();
