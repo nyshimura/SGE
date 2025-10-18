@@ -4,7 +4,7 @@
 export const appState = {
     currentUser: null,
     currentView: 'login',
-    
+
     // Dados buscados da API
     users: [],
     courses: [],
@@ -18,7 +18,7 @@ export const appState = {
     adminView: 'dashboard',
     viewingCourseId: null,
     viewingUserId: null,
-    
+
     // Estado específico de cada view
     userFilters: {
         name: '',
@@ -46,8 +46,13 @@ export const appState = {
         paymentIds: [],
         content: null,
     },
-    // NOVO ESTADO PARA A TELA DE DOCUMENTOS
     documentTemplatesState: {
         isVisible: false,
+    },
+    // --- NOVO ESTADO ---
+    enrollmentModalState: {
+        isOpen: false,
+        data: null, // Guardará os dados recebidos da API getEnrollmentDocuments
+        isReenrollment: false // Indica se é um fluxo de rematrícula
     }
 };
