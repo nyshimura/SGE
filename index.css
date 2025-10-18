@@ -1063,3 +1063,81 @@ footer {
     font-size: 0.9rem;
     min-width: 200px; /* Evita que o seletor fique muito pequeno */
 }
+
+/* ======== ESTILOS PARA O EDITOR DE MODELOS DE DOCUMENTOS ======== */
+
+.document-editor-container {
+    display: grid;
+    grid-template-columns: 2fr 1fr; /* Coluna do editor com o dobro do tamanho da coluna de placeholders */
+    gap: 2rem;
+}
+
+.document-editor {
+    display: flex;
+    flex-direction: column;
+}
+
+.document-editor textarea {
+    min-height: 400px;
+    font-family: monospace;
+    font-size: 0.9rem;
+    line-height: 1.5;
+}
+
+.placeholders-sidebar {
+    background-color: var(--subtle-bg);
+    padding: 1.5rem;
+    border-radius: 8px;
+    border: 1px solid var(--border-color);
+    align-self: start; /* Impede que a coluna se estique */
+    max-height: 500px; /* Adiciona uma altura máxima */
+    overflow-y: auto;  /* Adiciona scroll se os placeholders não couberem */
+}
+
+.placeholders-sidebar p {
+    font-size: 0.9rem;
+    color: #aaa;
+    margin-top: -1rem;
+    margin-bottom: 1.5rem;
+}
+
+.placeholder-group {
+    margin-bottom: 1.5rem;
+}
+
+.placeholder-group h4 {
+    margin-top: 0;
+    margin-bottom: 0.75rem;
+    font-size: 1rem;
+    border-bottom: 1px solid var(--border-color);
+    padding-bottom: 0.5rem;
+}
+
+.placeholder-button {
+    background-color: var(--card-background);
+    border: 1px solid var(--border-color);
+    color: var(--text-color);
+    padding: 0.4rem 0.8rem;
+    margin: 0.2rem;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.85rem;
+    transition: all 0.2s ease;
+}
+
+.placeholder-button:hover {
+    background-color: var(--primary-color);
+    color: #fff;
+    border-color: var(--primary-hover-color);
+}
+
+/* Responsividade para a tela de modelos */
+@media (max-width: 900px) {
+    .document-editor-container {
+        grid-template-columns: 1fr; /* Em telas menores, as colunas ficam uma em cima da outra */
+    }
+    .placeholders-sidebar {
+        grid-row: 1; /* Move a coluna de placeholders para cima em telas menores */
+        max-height: 250px; /* Reduz a altura máxima em mobile */
+    }
+}
