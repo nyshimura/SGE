@@ -120,7 +120,12 @@ export function generatePaidVsOutstandingBarChartSVG(data) {
     const dataEntries = Object.entries(data);
     const maxVal = Math.max(...Object.values(data).map(Number), 0);
     const yScale = (val) => chartHeight - (val / (maxVal > 0 ? maxVal : 1)) * chartHeight;
-    const colors = { 'Pago': 'var(--status-pago-text)', 'Em Aberto': 'var(--status-atrasado-text)' };
+    
+    // <<< CORREÇÃO AQUI: Cores fixas para o gráfico >>>
+    const colors = { 
+        'Pago': '#28a745',       // Verde para "Pago"
+        'Em Aberto': '#fca5a5'   // Vermelho claro para "Em Aberto"
+    };
 
     const yAxisTicks = 5;
     const yAxisHtml = Array.from({ length: yAxisTicks + 1 }).map((_, i) => {

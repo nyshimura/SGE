@@ -14,15 +14,7 @@ export async function renderProfileView(userId) {
     const isOwner = appState.currentUser.id === userId;
     const isAdminViewer = (appState.currentUser.role === 'admin' || appState.currentUser.role === 'superadmin') && !isOwner;
     
-    const canEditField = (fieldName) => {
-        if (isOwner) return true;
-        if (isAdminViewer) {
-            const value = userToView[fieldName];
-            return value === undefined || value === null || value === '';
-        }
-        return false;
-    };
-    const isFieldDisabled = (fieldName) => !canEditField(fieldName);
+    const isFieldDisabled = (fieldName) => !isOwner && !isAdminViewer;
 
     let enrollmentsHtml = '';
     if (isAdminViewer && userToView.role === 'student') {
@@ -32,34 +24,15 @@ export async function renderProfileView(userId) {
             ${enrollments.length === 0 ? '<p>Nenhuma matrícula encontrada.</p>' : `
                 <ul class="list">
                     ${enrollments.map((e) => {
-                        let actionButton = '';
-                        if (e.status === 'Aprovada') {
-                            actionButton = `<button type="button" class="action-button danger" onclick="window.handleCancelEnrollment(${userId}, ${e.courseId})">Trancar</button>`;
-                        } else if (e.status === 'Cancelada') {
-                            actionButton = `<button type="button" class="action-button" onclick="window.handleReactivateEnrollment(${userId}, ${e.courseId})">Reativar</button>`;
-                        }
-
-                        // <<< CORREÇÃO AQUI: Removido o <form> e alterado o botão
+                        // Ações foram movidas para a tela de detalhes do curso
                         return `
                         <li class="list-item">
-                            <div style="display: flex; justify-content: space-between; align-items: center; width: 100%; flex-wrap: wrap; gap: 1rem;">
+                            <div class="list-item-content">
                                 <span class="list-item-title">${e.courseName || 'Curso não encontrado'}</span>
-                                <div class="list-item-actions">
-                                    <span class="status-badge status-${e.status.toLowerCase()}">${e.status}</span>
-                                    ${actionButton}
-                                </div>
                             </div>
-                            <div class="profile-grid">
-                                <div class="form-group">
-                                    <label for="scholarship-${e.courseId}">Bolsa (%)</label>
-                                    <input type="number" id="scholarship-${e.courseId}" name="scholarshipPercentage" min="0" max="100" step="0.01" value="${e.scholarshipPercentage || '0'}">
-                                </div>
-                                <div class="form-group">
-                                    <label for="customFee-${e.courseId}">Mensalidade Personalizada (R$)</label>
-                                    <input type="number" id="customFee-${e.courseId}" name="customMonthlyFee" min="0" step="0.01" placeholder="Padrão do curso" value="${e.customMonthlyFee || ''}">
-                                </div>
+                            <div class="list-item-actions">
+                                <span class="status-badge status-${e.status.toLowerCase()}">${e.status}</span>
                             </div>
-                            <button type="button" class="action-button secondary" onclick="window.handleUpdateEnrollmentDetails(event, ${userId}, ${e.courseId})">Salvar Alterações da Matrícula</button>
                         </li>
                         `
                     }).join('')}
@@ -92,7 +65,6 @@ export async function renderProfileView(userId) {
         </div>
     ` : '';
 
-
     return `
         <div class="view-header">
             <h2>Perfil de ${userToView.firstName} ${userToView.lastName || ''}</h2>
@@ -105,9 +77,10 @@ export async function renderProfileView(userId) {
                     <img id="profile-pic-preview" class="profile-pic-preview" src="${userToView.profilePicture || 'https://via.placeholder.com/150'}" alt="Foto do Perfil">
                     <div class="form-group">
                         <label for="profilePicture">Alterar Foto de Perfil</label>
-                        <input type="file" id="profilePicture" name="profilePicture" accept="image/*" onchange="window.previewProfileImage(event)" ${isFieldDisabled('profilePicture') ? 'disabled' : ''}>
+                        <input type="file" id="profilePicture" name="profilePicture" accept="image/*" onchange="window.previewProfileImage(event)">
                     </div>
                 </div>
+
                 <div class="profile-fields-container">
                     <h3 class="card-title">Dados Pessoais</h3>
                     <div class="profile-grid">
@@ -127,18 +100,55 @@ export async function renderProfileView(userId) {
                             <label for="email">Email</label>
                             <input type="email" id="email" name="email" value="${userToView.email}" disabled>
                         </div>
+                         <div class="form-group">
+                            <label for="rg">RG</label>
+                            <input type="text" id="rg" name="rg" value="${userToView.rg || ''}" ${isFieldDisabled('rg') ? 'disabled' : ''}>
+                        </div>
+                        <div class="form-group">
+                            <label for="cpf">CPF</label>
+                            <input type="text" id="cpf" name="cpf" value="${userToView.cpf || ''}" ${isFieldDisabled('cpf') ? 'disabled' : ''}>
+                        </div>
                     </div>
                      <div class="form-group">
                         <label for="address">Endereço</label>
                         <textarea id="address" name="address" rows="3" ${isFieldDisabled('address') ? 'disabled' : ''}>${userToView.address || ''}</textarea>
                     </div>
 
-                    ${isOwner ? `<button type="submit" class="action-button">Salvar Alterações</button>`: ''}
+                    <div class="admin-only-section">
+                        <h3 class="card-title">Dados do Responsável (se menor de 18)</h3>
+                        <div class="profile-grid">
+                            <div class="form-group">
+                                <label for="guardianName">Nome do Responsável</label>
+                                <input type="text" id="guardianName" name="guardianName" value="${userToView.guardianName || ''}" ${isFieldDisabled('guardianName') ? 'disabled' : ''}>
+                            </div>
+                             <div class="form-group">
+                                <label for="guardianEmail">Email do Responsável</label>
+                                <input type="email" id="guardianEmail" name="guardianEmail" value="${userToView.guardianEmail || ''}" ${isFieldDisabled('guardianEmail') ? 'disabled' : ''}>
+                            </div>
+                            <div class="form-group">
+                                <label for="guardianRG">RG do Responsável</label>
+                                <input type="text" id="guardianRG" name="guardianRG" value="${userToView.guardianRG || ''}" ${isFieldDisabled('guardianRG') ? 'disabled' : ''}>
+                            </div>
+                            <div class="form-group">
+                                <label for="guardianCPF">CPF do Responsável</label>
+                                <input type="text" id="guardianCPF" name="guardianCPF" value="${userToView.guardianCPF || ''}" ${isFieldDisabled('guardianCPF') ? 'disabled' : ''}>
+                            </div>
+                             <div class="form-group">
+                                <label for="guardianPhone">Telefone do Responsável</label>
+                                <input type="tel" id="guardianPhone" name="guardianPhone" value="${userToView.guardianPhone || ''}" ${isFieldDisabled('guardianPhone') ? 'disabled' : ''}>
+                            </div>
+                        </div>
+                    </div>
+
+                    <button type="submit" class="action-button" style="margin-top: 1.5rem;">Salvar Alterações do Perfil</button>
                 </div>
             </form>
             
             <div class="admin-only-section">
                 ${enrollmentsHtml}
+            </div>
+            
+            <div class="admin-only-section">
                 ${(userToView.role === 'student') ? renderStudentFinancialHistory(userId, data.payments, true, isAdminViewer) : ''}
             </div>
 

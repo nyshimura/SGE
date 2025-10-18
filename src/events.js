@@ -14,6 +14,7 @@ export async function handleLogin(event) {
         const data = await apiCall('login', { email, password });
         if (data && data.user) {
             appState.currentUser = data.user;
+            localStorage.setItem('currentUser', JSON.stringify(data.user));
             appState.currentView = 'dashboard';
             render();
         } else {
@@ -47,15 +48,17 @@ export function navigateTo(view) {
 }
 
 export function handleLogout() {
+    localStorage.removeItem('currentUser');
     appState.currentUser = null;
     appState.currentView = 'login';
-    // Reseta todo o estado para o inicial
+    
     Object.assign(appState, {
         users: [], courses: [], enrollments: [], attendance: [], payments: [],
         adminView: 'dashboard', viewingCourseId: null, viewingUserId: null,
         userFilters: { name: '', role: 'all', courseId: 'all', enrollmentStatus: 'all' },
         attendanceState: { courseId: null, selectedDate: new Date().toISOString().split('T')[0], students: [], history: {} },
         financialState: { isDashboardVisible: false, isControlPanelVisible: false, isDefaultersReportVisible: false, selectedDate: new Date().toISOString().slice(0, 7), defaultersReportMonth: new Date().toISOString().slice(0, 7), defaultersReportCourseId: 'all', expandedStudentId: null },
+        documentTemplatesState: { isVisible: false },
         pixModal: { isOpen: false, paymentIds: [], content: null }
     });
     render();
@@ -131,7 +134,7 @@ export async function handleUpdateProfile(event) {
     
     const profileData = {};
     formData.forEach((value, key) => {
-        if (key !== 'profilePicture') profileData[key] = value;
+        profileData[key] = value;
     });
 
     const profilePicFile = formData.get('profilePicture');
@@ -139,7 +142,7 @@ export async function handleUpdateProfile(event) {
         profileData.profilePicture = await fileToBase64(profilePicFile);
     }
     try {
-        await apiCall('updateProfile', { userId, profileData });
+        await apiCall('updateProfile', { profileData });
         alert('Perfil atualizado com sucesso!');
         render();
     } catch (e) { /* handled by apiCall */ }
@@ -156,18 +159,16 @@ export async function handleUpdateSchoolProfile(event) {
         profileData.profilePicture = await fileToBase64(schoolPicFile);
     }
     
-    // Processa a imagem da assinatura
     const signatureFile = formData.get('signatureImage');
     if (signatureFile && signatureFile.size > 0) {
         profileData.signatureImage = await fileToBase64(signatureFile);
     }
-    // FIM NOVO
 
     try {
         const data = await apiCall('updateSchoolProfile', { profileData });
         appState.schoolProfile = data.profile;
         alert('Dados da unidade atualizados com sucesso!');
-        handleNavigateBackToDashboard();
+        render();
     } catch (e) { /* handled by apiCall */ }
 }
 
@@ -199,7 +200,21 @@ export async function handleUpdateSystemSettings(event) {
         await apiCall('updateSystemSettings', { settingsData });
         alert('Configurações salvas com sucesso!');
         appState.systemSettings = null; 
-        handleNavigateBackToDashboard();
+        render();
+    } catch(e) { /* handled by apiCall */ }
+}
+
+export async function handleUpdateDocumentTemplates(event) {
+    event.preventDefault();
+    const form = event.target;
+    const formData = new FormData(form);
+    const templateData = Object.fromEntries(formData.entries());
+
+    try {
+        await apiCall('updateDocumentTemplates', templateData);
+        alert('Modelos de documentos salvos com sucesso!');
+        appState.systemSettings = null; 
+        render();
     } catch(e) { /* handled by apiCall */ }
 }
 
@@ -405,6 +420,16 @@ export function handleGenerateReceipt(paymentId) {
     window.open(url, '_blank');
 }
 
+export function handleGenerateContractPdf(studentId, courseId) {
+    const url = `api/index.php?action=generateContractPdf&studentId=${studentId}&courseId=${courseId}`;
+    window.open(url, '_blank');
+}
+
+export function handleGenerateImageTermsPdf(studentId, courseId) {
+    const url = `api/index.php?action=generateImageTermsPdf&studentId=${studentId}&courseId=${courseId}`;
+    window.open(url, '_blank');
+}
+
 
 export function handleNavigateToAttendance(courseId) {
     appState.viewingCourseId = courseId;
@@ -440,10 +465,17 @@ export function handleNavigateToSystemSettings() {
     render();
 };
 
+export function handleNavigateToDocumentTemplates() {
+    appState.documentTemplatesState.isVisible = true;
+    appState.adminView = 'dashboard';
+    render();
+}
+
 export function handleNavigateToProfile(userId) {
     appState.financialState.isDashboardVisible = false;
     appState.financialState.isControlPanelVisible = false;
     appState.financialState.isDefaultersReportVisible = false;
+    appState.documentTemplatesState.isVisible = false;
     
     appState.viewingUserId = userId;
     render();
@@ -597,6 +629,7 @@ export function handleNavigateBackToDashboard() {
     appState.financialState.isDashboardVisible = false;
     appState.financialState.isControlPanelVisible = false;
     appState.financialState.isDefaultersReportVisible = false;
+    appState.documentTemplatesState.isVisible = false; 
     appState.adminView = 'dashboard';
     render();
 };

@@ -13,7 +13,8 @@ import { renderCourseDetailsView } from './views/course/details.js';
 import { renderAttendanceManagementView } from './views/course/attendance.js';
 import { renderFinancialControlPanelView } from './views/financial/controlPanel.js';
 import { renderFinancialDashboardView } from './views/financial/dashboard.js';
-import { renderDefaultersReportView } from './views/financial/defaultersReport.js'; // <-- NOVA IMPORTAÇÃO
+import { renderDefaultersReportView } from './views/financial/defaultersReport.js';
+import { renderDocumentTemplatesView } from './views/school/documentTemplates.js'; // <-- NOVA IMPORTAÇÃO
 import { applyCardOrder } from './utils/helpers.js';
 
 const appRoot = document.getElementById('app-root');
@@ -38,14 +39,13 @@ export async function render() {
   
   appRoot.innerHTML = ''; // Limpa o conteúdo antes de renderizar a nova view
   
-  // Renderiza o modal PIX se estiver aberto
   if (appState.pixModal.isOpen) {
       const existingModal = document.querySelector('.modal-overlay');
       if(existingModal) existingModal.remove();
       document.body.appendChild(renderPixPaymentModal(appState));
   }
   
-  const { currentUser, currentView, financialState, viewingCourseId, viewingUserId } = appState;
+  const { currentUser, currentView, financialState, viewingCourseId, viewingUserId, documentTemplatesState } = appState;
 
   // Views de autenticação
   if (!currentUser) {
@@ -58,13 +58,15 @@ export async function render() {
   }
   
   // Views de usuário logado
-  if (financialState.isDefaultersReportVisible) { // <-- NOVA LÓGICA ADICIONADA AQUI
+  if (documentTemplatesState.isVisible) { // <-- NOVA LÓGICA
+      appRoot.innerHTML = await renderDocumentTemplatesView();
+  } else if (financialState.isDefaultersReportVisible) {
       appRoot.innerHTML = await renderDefaultersReportView();
   } else if (financialState.isControlPanelVisible) {
       appRoot.innerHTML = await renderFinancialControlPanelView();
   } else if (financialState.isDashboardVisible) {
       appRoot.innerHTML = await renderFinancialDashboardView();
-  } else if (viewingUserId === -1) { // Flag especial para o perfil da escola
+  } else if (viewingUserId === -1) { 
       appRoot.innerHTML = await renderSchoolProfileView();
   } else if (viewingUserId !== null) {
       appRoot.innerHTML = await renderProfileView(viewingUserId);
@@ -79,9 +81,8 @@ export async function render() {
       }
   } else if (currentView === 'dashboard') {
       await renderDashboard(appRoot);
-      setTimeout(() => applyCardOrder(appRoot, appState), 0); // Aplica a ordem dos cards após renderização
+      setTimeout(() => applyCardOrder(appRoot, appState), 0);
   } else {
-      // Redireciona para o login se nenhuma rota corresponder
       appState.currentUser = null;
       render();
   }

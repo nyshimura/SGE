@@ -14,6 +14,13 @@ export async function renderSystemSettingsView() {
             <h2>Configurações do Sistema</h2>
             <button class="back-button" onclick="window.handleNavigateBackToDashboard()">← Voltar</button>
         </div>
+
+        <div class="card full-width">
+             <h3 class="card-title">Documentos</h3>
+             <p>Gerencie os modelos de contrato e termos de uso que serão apresentados aos alunos durante a matrícula.</p>
+             <button type="button" class="action-button" onclick="window.handleNavigateToDocumentTemplates()">Gerir Modelos de Documentos</button>
+        </div>
+
         <div class="card full-width">
             <form onsubmit="window.handleUpdateSystemSettings(event)">
                 <div class="settings-grid">
@@ -91,30 +98,6 @@ export async function renderSystemSettingsView() {
                     </div>
                     <div class="settings-section">
                         <h3 class="card-title">💾 Base de Dados</h3>
-                        <div class="form-grid">
-                            <div class="form-group">
-                                <label for="dbHost">Host</label>
-                                <input type="text" id="dbHost" name="dbHost" value="${settings.dbHost || ''}" disabled>
-                            </div>
-                            <div class="form-group">
-                                <label for="dbPort">Porta</label>
-                                <input type="text" id="dbPort" name="dbPort" value="${settings.dbPort || ''}" disabled>
-                            </div>
-                        </div>
-                        <div class="form-group">
-                            <label for="dbName">Nome da Base</label>
-                            <input type="text" id="dbName" name="dbName" value="${settings.dbName || ''}" disabled>
-                        </div>
-                        <div class="form-grid">
-                            <div class="form-group">
-                                <label for="dbUser">Usuário</label>
-                                <input type="text" id="dbUser" name="dbUser" value="${settings.dbUser || ''}" disabled>
-                            </div>
-                            <div class="form-group">
-                                <label for="dbPass">Senha</label>
-                                <input type="password" id="dbPass" name="dbPass" value="${settings.dbPass || ''}" disabled>
-                            </div>
-                        </div>
                         <button type="button" class="action-button secondary" onclick="window.handleExportDatabase()" style="margin-top: 1rem;">Exportar Dados Atuais (JSON)</button>
                         <small style="display: block; margin-top: 0.5rem;">Exporta todos os dados do banco para um arquivo JSON.</small>
                     </div>

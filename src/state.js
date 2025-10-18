@@ -38,12 +38,16 @@ export const appState = {
         isDefaultersReportVisible: false,
         selectedDate: new Date().toISOString().slice(0, 7),
         defaultersReportMonth: new Date().toISOString().slice(0, 7),
-        defaultersReportCourseId: 'all', // <-- NOVA LINHA ADICIONADA
+        defaultersReportCourseId: 'all',
         expandedStudentId: null,
     },
     pixModal: {
         isOpen: false,
         paymentIds: [],
         content: null,
+    },
+    // NOVO ESTADO PARA A TELA DE DOCUMENTOS
+    documentTemplatesState: {
+        isVisible: false,
     }
 };
