@@ -1,4 +1,5 @@
 <?php
+// <<< FUNÇÃO ANTIGA RESTAURADA AQUI >>>
 function handle_enroll($conn, $data) {
     $studentId = $data['studentId'];
     $courseId = $data['courseId'];
@@ -11,7 +12,8 @@ function handle_enroll($conn, $data) {
         if ($existingEnrollment['status'] === 'Pendente' || $existingEnrollment['status'] === 'Aprovada') {
             send_response(false, 'Você já possui uma matrícula ativa ou pendente para este curso.', 409);
         } elseif ($existingEnrollment['status'] === 'Cancelada') {
-            $updateStmt = $conn->prepare("UPDATE enrollments SET status = 'Pendente', billingStartDate = NULL WHERE studentId = ? AND courseId = ?");
+            // Esta é a lógica que precisamos restaurar:
+            $updateStmt = $conn->prepare("UPDATE enrollments SET status = 'Pendente', billingStartDate = NULL, contractAcceptedAt = NULL, termsAcceptedAt = NULL WHERE studentId = ? AND courseId = ?");
             $updateStmt->execute([$studentId, $courseId]);
             send_response(true, ['message' => 'Sua matrícula neste curso foi reativada e está aguardando aprovação.']);
         }
@@ -21,6 +23,82 @@ function handle_enroll($conn, $data) {
         send_response(true, ['message' => 'Solicitação de matrícula enviada.']);
     }
 }
+
+// Função para submeter a matrícula com dados do responsável e aceite de termos
+function handle_submit_enrollment($conn, $data) {
+    $studentId = $data['studentId'] ?? 0;
+    $courseId = $data['courseId'] ?? 0;
+    $enrollmentData = $data['enrollmentData'] ?? [];
+
+    if ($studentId <= 0 || $courseId <= 0) {
+        send_response(false, 'Dados de matrícula inválidos.', 400);
+    }
+
+    $conn->beginTransaction();
+    try {
+        // 1. Atualiza os dados do responsável e do aluno (RG/CPF) na tabela de usuários
+        if (!empty($enrollmentData['guardianName'])) {
+            $updateUserSql = "UPDATE users SET 
+                                rg = :rg, cpf = :cpf, 
+                                guardianName = :guardianName, guardianRG = :guardianRG, guardianCPF = :guardianCPF,
+                                guardianEmail = :guardianEmail, guardianPhone = :guardianPhone
+                              WHERE id = :studentId";
+            $stmtUser = $conn->prepare($updateUserSql);
+            $stmtUser->execute([
+                ':rg' => $enrollmentData['aluno_rg'] ?? null,
+                ':cpf' => $enrollmentData['aluno_cpf'] ?? null,
+                ':guardianName' => $enrollmentData['guardianName'],
+                ':guardianRG' => $enrollmentData['guardianRG'],
+                ':guardianCPF' => $enrollmentData['guardianCPF'],
+                ':guardianEmail' => $enrollmentData['guardianEmail'],
+                ':guardianPhone' => $enrollmentData['guardianPhone'],
+                ':studentId' => $studentId
+            ]);
+        } else {
+            $updateUserSql = "UPDATE users SET rg = :rg, cpf = :cpf WHERE id = :studentId";
+            $stmtUser = $conn->prepare($updateUserSql);
+            $stmtUser->execute([
+                ':rg' => $enrollmentData['aluno_rg'] ?? null,
+                ':cpf' => $enrollmentData['aluno_cpf'] ?? null,
+                ':studentId' => $studentId
+            ]);
+        }
+
+        // 2. Verifica se já existe matrícula
+        $stmt = $conn->prepare("SELECT * FROM enrollments WHERE studentId = ? AND courseId = ?");
+        $stmt->execute([$studentId, $courseId]);
+        $existingEnrollment = $stmt->fetch();
+
+        $now = date('Y-m-d H:i:s');
+        $contractAcceptedAt = !empty($enrollmentData['acceptContract']) ? $now : null;
+        $termsAcceptedAt = !empty($enrollmentData['acceptImageTerms']) ? $now : null;
+
+        if ($existingEnrollment) {
+             $updateStmt = $conn->prepare("
+                UPDATE enrollments SET status = 'Pendente', billingStartDate = NULL, 
+                       contractAcceptedAt = ?, termsAcceptedAt = ? 
+                WHERE studentId = ? AND courseId = ?
+            ");
+            $updateStmt->execute([$contractAcceptedAt, $termsAcceptedAt, $studentId, $courseId]);
+            $message = 'Sua matrícula neste curso foi reativada e está aguardando aprovação.';
+        } else {
+            $insertStmt = $conn->prepare("
+                INSERT INTO enrollments (studentId, courseId, status, contractAcceptedAt, termsAcceptedAt) 
+                VALUES (?, ?, 'Pendente', ?, ?)
+            ");
+            $insertStmt->execute([$studentId, $courseId, $contractAcceptedAt, $termsAcceptedAt]);
+            $message = 'Solicitação de matrícula enviada.';
+        }
+
+        $conn->commit();
+        send_response(true, ['message' => $message]);
+
+    } catch (Exception $e) {
+        $conn->rollBack();
+        send_response(false, 'Erro ao processar matrícula: ' . $e->getMessage(), 500);
+    }
+}
+
 
 function handle_approve_enrollment($conn, $data) {
     $studentId = $data['studentId'];
@@ -61,7 +139,7 @@ function handle_approve_enrollment($conn, $data) {
                 } else { // Recorrente
                     $endOfYear = new DateTime("{$currentYear}-12-31");
                     $interval = $billingDate->diff($endOfYear);
-                    $limit = $interval->m + 1;
+                    $limit = $interval->m + ($interval->d >= 0 ? 1 : 0);
                 }
 
                 $cursorDate = new DateTime($billingStartDate, new DateTimeZone('UTC'));
@@ -170,16 +248,12 @@ function handle_update_enrollment_details($conn, $data) {
 
     $conn->beginTransaction();
     try {
-        // 1. Atualiza a matrícula
         $updateStmt = $conn->prepare("UPDATE enrollments SET scholarshipPercentage = ?, customMonthlyFee = ? WHERE studentId = ? AND courseId = ?");
         $updateStmt->execute([$scholarship, $customFee, $studentId, $courseId]);
 
-        // 2. Remove pagamentos PENDENTES/ATRASADOS a partir da data de hoje
-        $today = date('Y-m-d');
-        $deleteStmt = $conn->prepare("DELETE FROM payments WHERE studentId = ? AND courseId = ? AND status IN ('Pendente', 'Atrasado') AND referenceDate >= ?");
-        $deleteStmt->execute([$studentId, $courseId, date('Y-m-01')]);
+        $deleteStmt = $conn->prepare("DELETE FROM payments WHERE studentId = ? AND courseId = ? AND status IN ('Pendente', 'Atrasado')");
+        $deleteStmt->execute([$studentId, $courseId]);
 
-        // 3. Busca detalhes para recálculo
         $stmtDetails = $conn->prepare("SELECT c.monthlyFee, c.paymentType, c.installments, e.billingStartDate 
                                        FROM courses c JOIN enrollments e ON c.id = e.courseId 
                                        WHERE e.studentId = ? AND e.courseId = ?");
@@ -187,50 +261,44 @@ function handle_update_enrollment_details($conn, $data) {
         $details = $stmtDetails->fetch();
         $dueDay = $conn->query("SELECT defaultDueDay FROM system_settings WHERE id = 1")->fetchColumn() ?? 10;
 
-        // 4. Recalcula se a bolsa não for 100%
         if ($details && $scholarship < 100) {
             $baseAmount = $customFee !== null ? $customFee : $details['monthlyFee'];
             $finalAmount = round($baseAmount * (1 - ($scholarship / 100)), 2);
 
             if ($finalAmount > 0) {
-                // Define o ponto de partida para a criação dos novos pagamentos
-                $todayDate = new DateTime('now', new DateTimeZone('UTC'));
-                $cursorDate = new DateTime('first day of this month', new DateTimeZone('UTC'));
+                $lastPaymentStmt = $conn->prepare("SELECT MAX(referenceDate) as lastDate FROM payments WHERE studentId = ? AND courseId = ?");
+                $lastPaymentStmt->execute([$studentId, $courseId]);
+                $lastPayment = $lastPaymentStmt->fetch();
 
-                // Se o dia do vencimento já passou neste mês, começa a criar a partir do próximo
-                if ($todayDate->format('d') > $dueDay) {
-                    $cursorDate->modify('first day of next month');
+                $startDate = new DateTime('first day of this month', new DateTimeZone('UTC'));
+                if ($lastPayment && $lastPayment['lastDate']) {
+                    $startDate = new DateTime($lastPayment['lastDate'], new DateTimeZone('UTC'));
+                    $startDate->modify('first day of next month');
                 }
                 
+                $cursorDate = $startDate;
+                
+                $totalPaymentsStmt = $conn->prepare("SELECT COUNT(id) as total FROM payments WHERE studentId = ? AND courseId = ?");
+                $totalPaymentsStmt->execute([$studentId, $courseId]);
+                $totalPayments = $totalPaymentsStmt->fetchColumn();
+
                 $limit = 0;
-                if ($details['paymentType'] === 'parcelado') {
-                    $totalPaymentsStmt = $conn->prepare("SELECT COUNT(id) as total FROM payments WHERE studentId = ? AND courseId = ?");
-                    $totalPaymentsStmt->execute([$studentId, $courseId]);
-                    $totalPayments = $totalPaymentsStmt->fetchColumn();
+                if ($details['paymentType'] === 'parcelado' && $details['installments'] > 0) {
                     $limit = (int)$details['installments'] - $totalPayments;
-                } else { // Recorrente
-                    $currentYear = $todayDate->format('Y');
+                } else {
+                    $currentYear = $cursorDate->format('Y');
                     $endOfYear = new DateTime("{$currentYear}-12-31", new DateTimeZone('UTC'));
-                    // Garante que o cursor não passe do fim do ano
-                    if ($cursorDate > $endOfYear) {
-                        $limit = 0;
-                    } else {
-                        $interval = $cursorDate->diff($endOfYear);
-                        $limit = $interval->m + ($interval->d > 0 ? 1 : 0) + 1; 
-                    }
+                    $interval = $cursorDate->diff($endOfYear);
+                    $limit = $interval->m + ($interval->d >= 0 ? 1 : 0);
                 }
                 
                 for ($i = 0; $i < $limit; $i++) {
                     $refDate = $cursorDate->format('Y-m-01');
                     $dueDate = $cursorDate->format('Y-m-') . str_pad($dueDay, 2, '0', STR_PAD_LEFT);
                     
-                    // Checagem final para evitar duplicatas
-                    $checkStmt = $conn->prepare("SELECT id FROM payments WHERE studentId = ? AND courseId = ? AND referenceDate = ?");
-                    $checkStmt->execute([$studentId, $courseId, $refDate]);
-                    if(!$checkStmt->fetch()){
-                        $insertStmt = $conn->prepare("INSERT INTO payments (studentId, courseId, amount, referenceDate, dueDate, status) VALUES (?, ?, ?, ?, ?, 'Pendente')");
-                        $insertStmt->execute([$studentId, $courseId, $finalAmount, $refDate, $dueDate]);
-                    }
+                    $insertStmt = $conn->prepare("INSERT INTO payments (studentId, courseId, amount, referenceDate, dueDate, status) VALUES (?, ?, ?, ?, ?, 'Pendente')");
+                    $insertStmt->execute([$studentId, $courseId, $finalAmount, $refDate, $dueDate]);
+
                     $cursorDate->modify('+1 month');
                 }
             }

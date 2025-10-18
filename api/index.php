@@ -4,7 +4,6 @@
  */
 
 // A configuração de erros está centralizada no config.php
-
 require_once 'config.php';
 
 // --- FUNÇÃO AUXILIAR PARA ENVIAR RESPOSTAS ---
@@ -28,7 +27,7 @@ require_once 'handlers/enrollment_handlers.php';
 require_once 'handlers/financial_handlers.php';
 require_once 'handlers/system_handlers.php';
 require_once 'handlers/ai_handlers.php'; 
-require_once 'handlers/receipt_handler.php';
+require_once 'handlers/document_handler.php';
 
 try {
     // Mapeamento de ações para funções
@@ -53,12 +52,15 @@ try {
         'getCourseDetails' => 'handle_get_course_details',
         'getAttendanceData' => 'handle_get_attendance_data',
         'saveAttendance' => 'handle_save_attendance',
+        
         // Enrollment
-        'enroll' => 'handle_enroll',
+        'enroll' => 'handle_enroll', // <-- AÇÃO ANTIGA RESTAURADA
+        'submitEnrollment' => 'handle_submit_enrollment', // <-- AÇÃO NOVA
         'approveEnrollment' => 'handle_approve_enrollment',
         'cancelEnrollment' => 'handle_cancel_enrollment',
         'reactivateEnrollment' => 'handle_reactivate_enrollment',
         'updateEnrollmentDetails' => 'handle_update_enrollment_details',
+        
         // Financial
         'getFinancialDashboardData' => 'handle_get_financial_dashboard_data',
         'getStudentPayments' => 'handle_get_student_payments',
@@ -66,18 +68,26 @@ try {
         'getDefaultersReport' => 'handle_get_defaulters_report',
         'bulkUpdatePaymentStatus' => 'handle_bulk_update_payment_status',
         'generateReceipt' => 'handle_generate_receipt',
+        
+        // Documents
+        'generateContractPdf' => 'handle_generate_contract_pdf',
+        'generateImageTermsPdf' => 'handle_generate_image_terms_pdf',
+        
         // System & School
         'getSchoolProfile' => 'handle_get_school_profile',
         'updateSchoolProfile' => 'handle_update_school_profile',
         'getSystemSettings' => 'handle_get_system_settings',
         'updateSystemSettings' => 'handle_update_system_settings',
+        'updateDocumentTemplates' => 'handle_update_document_templates',
         'exportDatabase' => 'handle_export_database',
         // AI
         'generateAiDescription' => 'handle_generate_ai_description',
     ];
 
     if (isset($actionMap[$action]) && function_exists($actionMap[$action])) {
-        $params = ($action === 'generateReceipt') ? $_GET : ($_SERVER['REQUEST_METHOD'] === 'GET' ? $_GET : $input);
+        $params = ($action === 'generateReceipt' || $action === 'generateContractPdf' || $action === 'generateImageTermsPdf') 
+            ? $_GET 
+            : ($_SERVER['REQUEST_METHOD'] === 'GET' ? $_GET : $input);
         call_user_func($actionMap[$action], $conn, $params);
     } else {
         send_response(false, 'Ação desconhecida ou não especificada: ' . htmlspecialchars($action), 400);

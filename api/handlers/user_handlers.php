@@ -32,42 +32,81 @@ function handle_get_dashboard_data($conn, $data) {
 }
 
 function handle_get_profile_data($conn, $data) {
-    $userId = $data['userId'];
-    $stmtUser = $conn->prepare("SELECT id, firstName, lastName, email, role, age, profilePicture, address FROM users WHERE id = ?");
-    $stmtUser->execute([$userId]);
-    $user = $stmtUser->fetch();
+    $userId = $data['userId'] ?? 0;
+
+    $stmt = $conn->prepare("SELECT * FROM users WHERE id = ?");
+    $stmt->execute([$userId]);
+    $user = $stmt->fetch(PDO::FETCH_ASSOC);
+
+    if (!$user) {
+        send_response(false, "Usuário não encontrado.", 404);
+    }
+
     $enrollments = [];
     $payments = [];
-    if ($user) {
-        $stmtEnroll = $conn->prepare("SELECT e.status, e.courseId, c.name as courseName, e.scholarshipPercentage, e.customMonthlyFee FROM enrollments e JOIN courses c ON e.courseId = c.id WHERE e.studentId = ?");
-        $stmtEnroll->execute([$userId]);
-        $enrollments = $stmtEnroll->fetchAll();
-        $stmtPay = $conn->prepare("SELECT * FROM payments WHERE studentId = ?");
-        $stmtPay->execute([$userId]);
-        $payments = $stmtPay->fetchAll();
+    if ($user['role'] === 'student') {
+        $enrollStmt = $conn->prepare("
+            SELECT e.*, c.name as courseName 
+            FROM enrollments e 
+            JOIN courses c ON e.courseId = c.id 
+            WHERE e.studentId = ?
+        ");
+        $enrollStmt->execute([$userId]);
+        $enrollments = $enrollStmt->fetchAll(PDO::FETCH_ASSOC);
+
+        $paymentStmt = $conn->prepare("SELECT * FROM payments WHERE studentId = ? ORDER BY referenceDate DESC");
+        $paymentStmt->execute([$userId]);
+        $payments = $paymentStmt->fetchAll(PDO::FETCH_ASSOC);
     }
-    send_response(true, ['user' => $user, 'enrollments' => $enrollments, 'payments' => $payments]);
+
+    send_response(true, [
+        'user' => $user,
+        'enrollments' => $enrollments,
+        'payments' => $payments
+    ]);
 }
 
 function handle_update_profile($conn, $data) {
-    $userId = $data['userId'];
-    $profileData = $data['profileData'];
-    $fields = [];
-    $params = [];
-    $allowedFields = ['firstName', 'lastName', 'age', 'address', 'profilePicture'];
+    $userId = $data['userId'] ?? 0;
+    $profileData = $data['profileData'] ?? [];
+
+    if ($userId <= 0) {
+        send_response(false, "ID de usuário inválido.", 400);
+    }
+
+    $allowedFields = [
+        'firstName', 'lastName', 'age', 'address', 'rg', 'cpf',
+        'guardianName', 'guardianRG', 'guardianCPF', 'guardianEmail', 'guardianPhone'
+    ];
+    $fieldsToUpdate = [];
+    $params = [':id' => $userId];
+
     foreach ($allowedFields as $field) {
-        if (isset($profileData[$field])) {
-            $fields[] = "$field = ?";
-            $params[] = $profileData[$field] === '' ? null : $profileData[$field];
+        if (array_key_exists($field, $profileData)) { // Use array_key_exists to allow empty strings
+            $fieldsToUpdate[] = "$field = :$field";
+            $params[":$field"] = $profileData[$field] === '' ? null : $profileData[$field];
         }
     }
-    if (count($fields) > 0) {
-        $params[] = $userId;
-        $sql = "UPDATE users SET " . implode(', ', $fields) . " WHERE id = ?";
+    
+    if (isset($profileData['profilePicture'])) {
+        $fieldsToUpdate[] = "profilePicture = :profilePicture";
+        $params[':profilePicture'] = $profileData['profilePicture'];
+    }
+
+    if (empty($fieldsToUpdate)) {
+        send_response(true, ['message' => 'Nenhum dado para atualizar.']);
+        return;
+    }
+
+    $sql = "UPDATE users SET " . implode(', ', $fieldsToUpdate) . " WHERE id = :id";
+    
+    try {
         $stmt = $conn->prepare($sql);
         $stmt->execute($params);
+        send_response(true, ['message' => 'Perfil atualizado com sucesso.']);
+    } catch (Exception $e) {
+        send_response(false, "Erro ao atualizar perfil: " . $e->getMessage(), 500);
     }
-    send_response(true, ['message' => 'Perfil atualizado com sucesso.']);
 }
 
 function handle_get_teachers($conn, $data) {
