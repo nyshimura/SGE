@@ -11,6 +11,23 @@ export function renderStudentView(studentId, data) {
   const allCourses = data.courses || [];
   const teachers = data.teachers || [];
 
+  // --- INÍCIO DA MODIFICAÇÃO ---
+
+  // 1. Identificar IDs dos cursos onde a matrícula é APROVADA.
+  const approvedCourseIds = myEnrollments
+    .filter(e => e.status === 'Aprovada')
+    .map(e => e.courseId);
+
+  // 2. Filtrar a lista de Cursos Disponíveis:
+  const availableCoursesToDisplay = allCourses.filter(course =>
+    // a) O curso deve estar Aberto
+    course.status === 'Aberto' &&
+    // b) O aluno NÃO pode ter uma matrícula APROVADA neste curso
+    !approvedCourseIds.includes(course.id)
+  );
+
+  // --- FIM DA MODIFICAÇÃO ---
+
   // *** ALTERAÇÃO AQUI ***
   // 1. Filtramos a lista de matrículas ANTES de renderizar.
   // Queremos apenas as que estão 'Aprovada' ou 'Pendente'.
@@ -58,14 +75,14 @@ export function renderStudentView(studentId, data) {
         </div>
       `
     },
-     {
+      {
       id: 'student-available-courses',
       html: `
         <div class="card" id="student-available-courses" draggable="true" ondragstart="window.AppHandlers.handleDragStart(event)" ondragend="window.AppHandlers.handleDragEnd(event)">
             <h3 class="card-title">🏫 Cursos Disponíveis para Inscrição</h3>
              <div class="list-wrapper">
                 <ul class="list">
-                    ${allCourses.filter(c => c.status === 'Aberto').map((course) => {
+                    ${availableCoursesToDisplay.map((course) => { // <-- USANDO A LISTA JÁ FILTRADA
                         // Verifica se existe matrícula ATIVA (Pendente ou Aprovada)
                         const hasActiveEnrollment = myEnrollments.some((e) => e.courseId === course.id && (e.status === 'Aprovada' || e.status === 'Pendente'));
                         // Verifica se existe matrícula CANCELADA
@@ -74,13 +91,14 @@ export function renderStudentView(studentId, data) {
                         const teacher = teachers.find((t) => t.id === course.teacherId);
                         let actionHtml = '';
 
+                        // A lógica abaixo agora só precisa checar Pendente ou Cancelada, já que Aprovada foi filtrado antes.
                         if (hasActiveEnrollment) {
                              const currentStatus = myEnrollments.find(e => e.courseId === course.id)?.status;
                              actionHtml = `<span class="status-badge status-${currentStatus.toLowerCase()}">Matriculado</span>`;
                         } else if (wasCancelled) {
-                             actionHtml = `<button class="action-button" data-course-id="${course.id}" onclick="window.AppHandlers.handleInitiateEnrollment(${course.id})">Reinscrever-se</button>`;
+                            actionHtml = `<button class="action-button" data-course-id="${course.id}" onclick="window.AppHandlers.handleInitiateEnrollment(${course.id})">Reinscrever-se</button>`;
                         } else {
-                             actionHtml = `<button class="action-button" data-course-id="${course.id}" onclick="window.AppHandlers.handleInitiateEnrollment(${course.id})">Inscreva-se Agora</button>`;
+                            actionHtml = `<button class="action-button" data-course-id="${course.id}" onclick="window.AppHandlers.handleInitiateEnrollment(${course.id})">Inscreva-se Agora</button>`;
                         }
 
                         return `
@@ -95,7 +113,7 @@ export function renderStudentView(studentId, data) {
                                 </div>
                             </li>
                         `;
-                    }).join('') || '<li>Nenhum novo curso disponível no momento.</li>'}
+                    }).join('') || '<li>🎉 Parabéns! Você já está matriculado(a) em todos os cursos abertos. 🎉</li>'}
                 </ul>
             </div>
         </div>

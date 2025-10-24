@@ -49,7 +49,7 @@ export function renderEnrollmentModal(data) {
                     <div class="modal-section document-section">
                         <h4>Contrato de Prestação de Serviços</h4>
                         <div class="document-viewer"> ${contractText || 'Modelo de contrato não disponível.'} </div>
-                        <div class="form-group checkbox-group">
+                        <div class="checkbox-group-modal">
                             <input type="checkbox" id="acceptContract" name="acceptContract" required onchange="document.getElementById('submit-enrollment-btn').disabled = !this.checked;">
                             <label for="acceptContract">Li e aceito o Contrato de Prestação de Serviços.</label>
                         </div>
@@ -58,7 +58,7 @@ export function renderEnrollmentModal(data) {
                     <div class="modal-section document-section">
                         <h4>Termo de Autorização de Uso de Imagem</h4>
                         <div class="document-viewer"> ${termsText || 'Modelo de termo de imagem não disponível.'} </div>
-                        <div class="form-group checkbox-group">
+                        <div class="checkbox-group-modal">
                             <input type="checkbox" id="acceptImageTerms" name="acceptImageTerms">
                             <label for="acceptImageTerms">Autorizo o uso de imagem conforme os termos (opcional).</label>
                         </div>
@@ -72,8 +72,7 @@ export function renderEnrollmentModal(data) {
                 </div>
             </form>
         </div>
-        <style> /* ... */ </style>
-    `;
+    `; // O bloco <style> foi removido daqui.
 
     // Re-adiciona listener para validação e máscaras (mantido como está)
      modalOverlay.querySelector('#enrollment-form').addEventListener('input', (event) => { /* ... */ });
