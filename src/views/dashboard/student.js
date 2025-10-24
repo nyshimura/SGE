@@ -11,6 +11,13 @@ export function renderStudentView(studentId, data) {
   const allCourses = data.courses || [];
   const teachers = data.teachers || [];
 
+  // *** ALTERAÇÃO AQUI ***
+  // 1. Filtramos a lista de matrículas ANTES de renderizar.
+  // Queremos apenas as que estão 'Aprovada' ou 'Pendente'.
+  const activeEnrollments = myEnrollments.filter(
+    (e) => e.status === 'Aprovada' || e.status === 'Pendente'
+  );
+
   const cards = [
     {
       id: 'student-courses',
@@ -19,26 +26,19 @@ export function renderStudentView(studentId, data) {
             <h3 class="card-title">📚 Meus Cursos e Matrículas</h3>
             <div class="list-wrapper">
                 <ul class="list">
-                    ${myEnrollments.length === 0 ? '<li>Nenhuma matrícula encontrada.</li>' : myEnrollments.map((enrollment) => {
+                    ${activeEnrollments.length === 0 ? '<li>Nenhuma matrícula ativa encontrada.</li>' : activeEnrollments.map((enrollment) => {
+                        // 2. Agora o .map() usa a lista filtrada "activeEnrollments"
                         const course = allCourses.find((c) => c.id === enrollment.courseId);
                         if (!course) return '<li>Curso não encontrado (ID: ' + enrollment.courseId + ')</li>';
 
                         const teacher = teachers.find((t) => t.id === course.teacherId);
 
+                        // 3. Os botões de ação foram simplificados.
+                        // Deixamos APENAS o botão "Detalhes".
                         let actionButtons = `<button class="action-button secondary" onclick="window.AppHandlers.handleNavigateToCourseDetails(${course.id})">Detalhes</button>`;
 
-                        // Botões adicionais só aparecem se a matrícula está Aprovada
-                        if (enrollment.status === 'Aprovada') {
-                            actionButtons += `
-                                <button class="action-button secondary" onclick="window.AppHandlers.handleGenerateContractPdf(${student.id}, ${course.id})">Ver Contrato</button>
-                                ${enrollment.termsAcceptedAt ?
-                                    `<button class="action-button secondary" onclick="window.AppHandlers.handleGenerateImageTermsPdf(${student.id}, ${course.id})">Ver Termo</button>`
-                                    : ''
-                                }`;
-                            // O botão de trancar foi movido para a tela de detalhes
-                        } else if (enrollment.status === 'Cancelada') {
-                             actionButtons += `<button class="action-button" onclick="window.AppHandlers.handleInitiateEnrollment(${course.id})">Reinscrever-se</button>`;
-                        }
+                        // 4. REMOVEMOS os blocos 'if (enrollment.status === 'Aprovada')' 
+                        // e 'else if (enrollment.status === 'Cancelada')' que adicionavam outros botões.
 
                         return `
                             <li class="list-item">
