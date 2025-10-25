@@ -7,14 +7,14 @@
 
 // Define handle_get_school_profile APENAS UMA VEZ
 function handle_get_school_profile($conn, $data) {
-    error_log("Iniciando handle_get_school_profile...");
+    // error_log("Iniciando handle_get_school_profile..."); // Log removido
     if (!isset($conn) || !$conn instanceof PDO) { error_log("Erro: Conexão PDO inválida."); send_response(false, ['message'=>'Erro Interno (DB)'], 500); return; }
     try {
         $stmt = $conn->prepare("SELECT * FROM school_profile WHERE id = 1 LIMIT 1");
         $stmt->execute();
         $profile = $stmt->fetch(PDO::FETCH_ASSOC);
         if ($profile) {
-            error_log("Perfil da escola encontrado.");
+            // error_log("Perfil da escola encontrado."); // Log removido
             send_response(true, ['profile' => $profile]);
         } else {
             error_log("Perfil da escola id=1 não encontrado. Tentando criar padrão...");
@@ -54,11 +54,27 @@ function handle_update_school_profile($conn, $data) {
             $params[":" . $field] = ($profileData[$field] === '') ? null : $profileData[$field];
         }
     }
-    if (empty($fields)) { error_log("Nenhum campo válido para atualizar em school_profile."); $stmtCurrent = $conn->query("SELECT * FROM school_profile WHERE id = 1"); $currentProfile = $stmtCurrent->fetch(); send_response(true, ['message' => 'Nenhum dado válido para atualizar.', 'profile' => $currentProfile]); return; }
+    if (empty($fields)) { error_log("Nenhum campo válido para atualizar em school_profile."); $stmtCurrent = $conn->query("SELECT * FROM school_profile WHERE id = 1"); $currentProfile = $stmtCurrent->fetch(); send_response(true, ['message' => 'Nenhum dado válido para atualizar.', 'profile' => $currentProfile, 'success' => true]); return; } // Adicionado success aqui também por consistência
     $setFields = implode(', ', $fields); $sql = "UPDATE `school_profile` SET {$setFields} WHERE `id` = :id";
-    try { $stmt = $conn->prepare($sql); $stmt->execute($params); $stmtSelect = $conn->prepare("SELECT * FROM `school_profile` WHERE `id` = 1 LIMIT 1"); $stmtSelect->execute(); $updatedProfile = $stmtSelect->fetch(PDO::FETCH_ASSOC);
-        if ($updatedProfile) { error_log("Perfil da escola atualizado."); send_response(true, ['message' => 'Perfil atualizado.', 'profile' => $updatedProfile]); }
-        else { error_log("Falha ao buscar perfil da escola atualizado."); send_response(false, ['message' => 'Atualizado, mas falha ao retornar dados.'], 500); }
+    try {
+        $stmt = $conn->prepare($sql);
+        $stmt->execute($params);
+        // Mesmo se rowCount for 0 (nenhuma linha alterada), buscamos e retornamos o perfil atual.
+        $stmtSelect = $conn->prepare("SELECT * FROM `school_profile` WHERE `id` = 1 LIMIT 1");
+        $stmtSelect->execute();
+        $updatedProfile = $stmtSelect->fetch(PDO::FETCH_ASSOC);
+
+        if ($updatedProfile) {
+            error_log("Perfil da escola atualizado (ou verificado)."); // Log ligeiramente ajustado
+            // --- INÍCIO DA MODIFICAÇÃO ---
+            // Adiciona 'success' => true à resposta para o frontend
+            send_response(true, ['message' => 'Perfil atualizado.', 'profile' => $updatedProfile, 'success' => true]);
+            // --- FIM DA MODIFICAÇÃO ---
+        } else {
+            // Este caso só deve ocorrer se a tabela estiver vazia e a busca falhar
+            error_log("Falha ao buscar perfil da escola após tentativa de update.");
+            send_response(false, ['message' => 'Falha ao buscar dados após atualização.'], 500);
+        }
     } catch (PDOException $e) { error_log("Erro PDO handle_update_school_profile: " . $e->getMessage()); send_response(false, ['message' => "Erro DB ao atualizar perfil."], 500);
     } catch (Exception $e) { error_log("Erro geral handle_update_school_profile: " . $e->getMessage()); send_response(false, ['message' => "Erro interno ao atualizar perfil."], 500); }
 }
@@ -96,12 +112,12 @@ function handle_get_system_settings($conn, $data) {
                   $stmt->execute(); // Tenta buscar novamente
                   $settings = $stmt->fetch(PDO::FETCH_ASSOC);
                   if ($settings) {
-                      // Preenche campos nulos para a resposta
-                      $settings['enableTerminationFine'] = false; $settings['terminationFineMonths'] = 1; /*...*/ $settings['certificate_background_image'] = null;
-                      error_log("Configurações padrão criadas e retornadas.");
-                      send_response(true, ['settings' => $settings]);
+                       // Preenche campos nulos para a resposta
+                       $settings['enableTerminationFine'] = false; $settings['terminationFineMonths'] = 1; /*...*/ $settings['certificate_background_image'] = null;
+                       error_log("Configurações padrão criadas e retornadas.");
+                       send_response(true, ['settings' => $settings]);
                   } else {
-                      throw new Exception("Falha ao criar/buscar settings padrão.");
+                       throw new Exception("Falha ao criar/buscar settings padrão.");
                   }
              } catch (Exception $e) {
                  error_log("Erro ao tentar criar/buscar settings padrão: " . $e->getMessage());
@@ -149,23 +165,23 @@ function handle_update_system_settings($conn, $data) {
 
             switch ($type) {
                 case 'int':
-                    $value = filter_var($value, FILTER_VALIDATE_INT);
-                    if ($field === 'defaultDueDay') { $value = max(1, min(28, $value === false ? 10 : $value)); }
-                    elseif ($field === 'terminationFineMonths') { $value = max(1, $value === false ? 1 : $value); }
-                    else { $value = ($value === false) ? 0 : $value; }
-                    break;
+                     $value = filter_var($value, FILTER_VALIDATE_INT);
+                     if ($field === 'defaultDueDay') { $value = max(1, min(28, $value === false ? 10 : $value)); }
+                     elseif ($field === 'terminationFineMonths') { $value = max(1, $value === false ? 1 : $value); }
+                     else { $value = ($value === false) ? 0 : $value; }
+                     break;
                 case 'bool':
-                    $value = filter_var($value, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE);
-                    $value = $value ? 1 : 0;
-                    break;
+                     $value = filter_var($value, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE);
+                     $value = $value ? 1 : 0;
+                     break;
                 case 'string_nullable':
-                    if ($field === 'smtpPass' || $field === 'certificate_background_image') {
-                         $value = $settingsData[$field];
-                         if ($value === '') $value = null; // Garante null se for string vazia
-                    } else {
-                         $value = ($value === null || trim((string)$value) === '') ? null : trim((string)$value);
-                    }
-                    break;
+                     if ($field === 'smtpPass' || $field === 'certificate_background_image') {
+                          $value = $settingsData[$field];
+                          if ($value === '') $value = null; // Garante null se for string vazia
+                     } else {
+                          $value = ($value === null || trim((string)$value) === '') ? null : trim((string)$value);
+                     }
+                     break;
                 case 'string': default: $value = trim((string)$value); break;
             }
 
@@ -180,7 +196,7 @@ function handle_update_system_settings($conn, $data) {
         }
     }
 
-    if (empty($fields)) { error_log("Nenhum campo válido para atualizar em system_settings."); send_response(true, ['message' => 'Nenhum dado válido para atualizar.']); return; }
+    if (empty($fields)) { error_log("Nenhum campo válido para atualizar em system_settings."); send_response(true, ['message' => 'Nenhum dado válido para atualizar.', 'success' => true]); return; } // Adicionado success aqui também
     $setFields = implode(', ', $fields);
     $sql = "UPDATE `system_settings` SET {$setFields} WHERE `id` = :id";
     error_log("SQL Query (sem params): " . $sql); // Log da query
@@ -191,7 +207,7 @@ function handle_update_system_settings($conn, $data) {
         if ($executeResult) {
              if ($stmt->rowCount() > 0) { error_log("Configurações do sistema atualizadas."); }
              else { error_log("Nenhuma alteração detectada nas configurações do sistema."); }
-             send_response(true, ['message' => 'Configurações salvas com sucesso.']);
+             send_response(true, ['message' => 'Configurações salvas com sucesso.', 'success' => true]); // Adicionado success aqui também
         } else {
              error_log("Falha na execução do UPDATE para system_settings.");
              send_response(false, ['message' => "Falha ao executar atualização no banco de dados."], 500);
@@ -263,10 +279,10 @@ function handle_update_document_templates($conn, $data) {
             $stmt->execute($params);
             if ($stmt->rowCount() > 0) {
                 error_log("Modelos de contrato/termos salvos.");
-                send_response(true, ['message' => 'Modelos salvos com sucesso.']);
+                send_response(true, ['message' => 'Modelos salvos com sucesso.', 'success' => true]); // Adicionado success aqui
             } else {
                 error_log("Nenhuma alteração em modelos de contrato/termos.");
-                send_response(true, ['message' => 'Nenhuma alteração detectada.']);
+                send_response(true, ['message' => 'Nenhuma alteração detectada.', 'success' => true]); // Adicionado success aqui
             }
         } catch (PDOException $e) {
             error_log("Erro PDO em handle_update_document_templates: " . $e->getMessage());
@@ -277,7 +293,7 @@ function handle_update_document_templates($conn, $data) {
         }
     } else {
         error_log("Nenhum campo de template recebido para atualização.");
-        send_response(true, ['message' => 'Nenhum dado de template recebido.']);
+        send_response(true, ['message' => 'Nenhum dado de template recebido.', 'success' => true]); // Adicionado success aqui
     }
 }
 // **********************************

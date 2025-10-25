@@ -56,7 +56,7 @@ function handle_get_profile_data($conn, $data) {
     send_response(true, ['user' => $user, 'enrollments' => $enrollments, 'payments' => $payments]);
 }
 
-// <<< FUNÇÃO MODIFICADA (CÁLCULO DE IDADE RESTAURADO) >>>
+// <<< FUNÇÃO MODIFICADA (LOGS REMOVIDOS) >>>
 function handle_update_profile($conn, $data) {
     $userId = $data['userId'] ?? 0;
     $profileData = $data['profileData'] ?? [];
@@ -82,7 +82,7 @@ function handle_update_profile($conn, $data) {
                 } elseif (validateDate($value, 'Y-m-d')) {
                      $paramValue = $value;
                 } else {
-                     error_log("Formato inválido para birthDate userId $userId: " . print_r($value, true));
+                     // error_log("Formato inválido para birthDate userId $userId: " . print_r($value, true)); // Mantido caso queira logar só o erro de data
                      send_response(false, ['message' => "Formato inválido para Data de Nascimento. Use AAAA-MM-DD."], 400);
                      return;
                 }
@@ -107,43 +107,34 @@ function handle_update_profile($conn, $data) {
          $hasValidFields = true;
     }
 
-    // --- INÍCIO DA MODIFICAÇÃO (BLOCO RESTAURADO) ---
-    // Este bloco agora calcula a idade E a adiciona ao UPDATE,
-    // já que o banco de dados não faz isso automaticamente.
+    // --- BLOCO DE CÁLCULO DE IDADE (RESTAURADO) ---
      if (array_key_exists('birthDate', $profileData)) {
          try {
              $age = null;
-             // Busca o valor de :birthDate que foi DEFINIDO no loop acima
              $birthDateValue = $params[':birthDate'] ?? null;
              if ($birthDateValue !== null && validateDate($birthDateValue, 'Y-m-d')) {
                   $birth = new DateTime($birthDateValue);
                   $today = new DateTime('today');
                   $age = $birth->diff($today)->y;
              }
-
-             // Adiciona ou atualiza 'age'
              $ageFieldExists = false;
              foreach ($fieldsToUpdate as $f) { if (strpos($f, '`age`') === 0) { $ageFieldExists = true; break; } }
-             if (!$ageFieldExists) { $fieldsToUpdate[] = "`age` = :age"; } // Adiciona `age` = :age à query
-             $params[':age'] = $age; // Adiciona/Sobrescreve :age em $params
-             $hasValidFields = true; // Garante que mesmo só a idade sendo calculada, o update ocorra
+             if (!$ageFieldExists) { $fieldsToUpdate[] = "`age` = :age"; }
+             $params[':age'] = $age;
+             $hasValidFields = true;
          } catch (Exception $e) {
              error_log("Erro ao calcular/processar idade para userId $userId: " . $e->getMessage());
-             // Não paramos a execução aqui, apenas logamos o erro.
-             // Se não calcular a idade, $params[':age'] será null (ou o valor anterior, se houver).
          }
      }
-    // --- FIM DA MODIFICAÇÃO (BLOCO RESTAURADO) ---
+    // --- FIM DO BLOCO ---
 
 
     if (!$hasValidFields) { /* ... (Lógica 'Nenhum campo alterado') ... */ return; }
 
     $sql = "UPDATE `users` SET " . implode(', ', $fieldsToUpdate) . " WHERE `id` = :id";
-    error_log("SQL para userId $userId: " . $sql);
+    // error_log("SQL para userId $userId: " . $sql); // <<< LINHA REMOVIDA
 
-    // --- ADICIONADO LOG DETALHADO DOS PARÂMETROS ---
-    error_log("Params para userId $userId ANTES DO EXECUTE: " . print_r($params, true));
-    // ----------------------------------------------
+    // error_log("Params para userId $userId ANTES DO EXECUTE: " . print_r($params, true)); // <<< LINHA REMOVIDA
 
     try {
         $stmt = $conn->prepare($sql);
@@ -154,43 +145,26 @@ function handle_update_profile($conn, $data) {
             return;
         }
 
-        $success = $stmt->execute($params); // Agora inclui :age novamente
+        $success = $stmt->execute($params);
 
         if ($success) {
-            // Busca o usuário atualizado DO BANCO
              $stmtGet = $conn->prepare("SELECT id, firstName, lastName, email, role, age, profilePicture, address, rg, cpf, birthDate, guardianName, guardianRG, guardianCPF, guardianEmail, guardianPhone, created_at FROM users WHERE id = ?");
              $stmtGet->execute([$userId]);
              $updatedUser = $stmtGet->fetch(PDO::FETCH_ASSOC);
              if ($updatedUser) {
                   unset($updatedUser['password_hash']);
-                  
-                  // Bloco redundante de cálculo de idade em PHP removido (correto)
-                  /*
-                  if ($updatedUser['birthDate']) {
-                       try {
-                            $birth = new DateTime($updatedUser['birthDate']);
-                            $today = new DateTime('today');
-                            $updatedUser['age'] = $birth->diff($today)->y;
-                       } catch (Exception $e) { $updatedUser['age'] = null; }
-                  } else { $updatedUser['age'] = null; }
-                  */
-
-                  // Retorna sucesso e o usuário atualizado (com a idade agora atualizada pelo PHP)
                   send_response(true, ['message' => 'Perfil salvo com sucesso.', 'updatedUser' => $updatedUser, 'success' => true]);
              } else { send_response(false, ['message' => 'Usuário não encontrado após atualização.'], 404); }
         } else {
-            // Erro na execução que foi capturado
             $errorInfo = $stmt->errorInfo();
             error_log("Falha ao EXECUTAR UPDATE do perfil userId $userId: " . ($errorInfo[2] ?? 'Erro desconhecido'));
             send_response(false, ['message' => 'Falha ao salvar no banco de dados: ' . ($errorInfo[2] ?? 'Verifique os logs')], 500);
         }
     } catch (PDOException $e) {
-        // Erro PDO que foi capturado
         error_log("Erro PDO EXCEPTION em handle_update_profile userId $userId: " . $e->getMessage());
         send_response(false, ['message' => 'Erro Crítico de Banco de Dados: ' . $e->getMessage()], 500);
     }
     catch (Exception $e) {
-        // Erro geral que foi capturado
         error_log("Erro GERAL EXCEPTION em handle_update_profile userId $userId: " . $e->getMessage());
         send_response(false, ['message' => 'Erro Geral no servidor: ' . $e->getMessage()], 500);
     }
