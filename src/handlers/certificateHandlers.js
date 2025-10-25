@@ -24,7 +24,6 @@ function fileToBase64(file) {
 // HANDLERS DE CERTIFICADO
 // ----------------------------------------------------------------
 
-// <<< MODIFICADO: Renomeada para clareza >>>
 // Função auxiliar (não exportada) para ler dados de um formulário
 function getCertificateParamsFromForm(form) {
     const completionDate = form.elements.namedItem('completionDate').value;
@@ -45,7 +44,7 @@ function getCertificateParamsFromForm(form) {
 
 
 /**
- * Dispara a geração de um certificado individual (abre em nova aba) - Usado via Formulário.
+ * Dispara a geração de um certificado individual (abre em nova aba) - Usado via Formulário (Admin).
  */
 function handleGenerateCertificate(event, studentId, courseId) { // <<< Removido export daqui
     event.preventDefault(); // Previne submit do form
@@ -54,7 +53,7 @@ function handleGenerateCertificate(event, studentId, courseId) { // <<< Removido
     if (!params) return;
 
     const queryParams = new URLSearchParams({
-        action: 'generateCertificate',
+        action: 'generateCertificate', // Ação correta para admin gerar
         studentId: studentId,
         courseId: courseId,
         completionDate: params.completionDate,
@@ -66,15 +65,20 @@ function handleGenerateCertificate(event, studentId, courseId) { // <<< Removido
     window.open(url, '_blank');
 }
 
-// <<< ADICIONADO: Nova função para visualizar certificado da lista do aluno >>>
+
 /**
- * Dispara a visualização/download de um certificado (abre em nova aba) - Usado na view 'myCertificates'.
+ * Dispara a visualização/download de um certificado (abre em nova aba) - Usado na view 'myCertificates' (Aluno).
  */
-function handleViewCertificate(studentId, courseId, completionDate) { // <<< Removido export daqui
+function handleViewCertificate(studentId, courseId, completionDate, existingHash) { // <<< Removido export daqui
     // Validações básicas
     if (!studentId || !courseId || !completionDate) {
         console.error("IDs de aluno/curso ou data de conclusão ausentes para visualizar certificado.");
         alert("Não foi possível gerar o link do certificado. Dados incompletos.");
+        return;
+    }
+    if (!existingHash) {
+        console.error("Hash de verificação ausente. Não é possível visualizar o certificado.");
+        alert("Erro: O código de verificação (hash) não foi encontrado. Não é possível abrir o certificado.");
         return;
     }
      // Validação simples de data YYYY-MM-DD
@@ -84,22 +88,25 @@ function handleViewCertificate(studentId, courseId, completionDate) { // <<< Rem
         return;
     }
 
+    // <<< INÍCIO ALTERAÇÃO: Chama a nova ação 'viewCertificate' >>>
     const queryParams = new URLSearchParams({
-        action: 'generateCertificate', // Usa a mesma action do backend
+        action: 'viewCertificate', // <-- MUDOU AQUI para a ação correta
         studentId: studentId,
         courseId: courseId,
         completionDate: completionDate,
-        overrideCargaHoraria: '' // Carga horária não precisa ser sobrescrita na visualização
+        existingHash: existingHash    // Passa o hash existente para o backend
+        // overrideCargaHoraria não é necessário para visualização
     });
+    // <<< FIM ALTERAÇÃO >>>
 
     // Chama a API via GET para abrir o PDF diretamente
     const url = `api/index.php?${queryParams.toString()}`;
     window.open(url, '_blank'); // Abre o PDF em uma nova aba
 }
-// <<< FIM DA ADIÇÃO >>>
+
 
 /**
- * Dispara a geração de certificados em massa para um curso (inicia download).
+ * Dispara a geração de certificados em massa para um curso (inicia download) - Admin.
  */
 function handleGenerateBulkCertificates(event, courseId) { // <<< Removido export daqui
      event.preventDefault(); // Previne submit do form
@@ -171,7 +178,7 @@ function removeCertificateBackground() { // <<< Removido export daqui
 // <<< ADICIONADO/MODIFICADO: Agrupa todos os handlers para exportação >>>
 export const certificateHandlers = {
     handleGenerateCertificate,
-    handleViewCertificate, // <<< Nova função adicionada aqui
+    handleViewCertificate, // Função agora chama a action correta
     handleGenerateBulkCertificates,
     previewCertificateBackground,
     removeCertificateBackground,

@@ -56,8 +56,9 @@ export async function renderMyCertificatesView() {
                         <li class="certificate-item card">
                             <h3>${cert.courseName || 'Nome do Curso Indisponível'}</h3>
                             <p>Data de Conclusão: ${cert.completion_date_formatted || cert.completion_date}</p>
+                            
                             <button class="action-button primary"
-                                    onclick="window.AppHandlers.handleViewCertificate(${studentId}, ${cert.courseId}, '${cert.completion_date}')">
+                                    onclick="window.AppHandlers.handleViewCertificate(${studentId}, ${cert.courseId}, '${cert.completion_date}', '${cert.verification_hash}')">
                                 Visualizar Certificado
                             </button>
                             ${cert.verification_hash ? `<p class="certificate-hash">Código: ${cert.verification_hash}</p>` : ''}

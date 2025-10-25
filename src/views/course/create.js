@@ -20,12 +20,12 @@ export function renderCreateCourseView() {
                 <div class="form-group"> <label>Estrutura de Pagamento</label> <div class="radio-group"> <label><input type="radio" name="paymentType" value="recorrente" checked onchange="document.getElementById('installments-group').style.display='none'"> Recorrente</label> <label><input type="radio" name="paymentType" value="parcelado" onchange="document.getElementById('installments-group').style.display='block'"> Parcelado</label> </div> </div>
                 <div class="form-group" id="installments-group" style="display: none;"> <label for="installments">Número de Parcelas</label> <input type="number" id="installments" name="installments" min="1" placeholder="Ex: 12"> </div>
 
-                {/* --- CAMPO CARGA HORÁRIA --- */}
+                
                 <div class="form-group">
                     <label for="carga_horaria">Carga Horária (p/ certificado)</label>
                     <input type="text" id="carga_horaria" name="carga_horaria" placeholder="Ex: 40 horas">
                 </div>
-                {/* ------------------------- */}
+                
 
                 <div class="form-grid">
                      <div class="form-group"> <label for="dayOfWeek">Dia da Semana</label> <select id="dayOfWeek" name="dayOfWeek"> <option value="">Nenhum</option> <option value="Domingo">Domingo</option> <option value="Segunda-feira">Segunda</option> <option value="Terça-feira">Terça</option> <option value="Quarta-feira">Quarta</option> <option value="Quinta-feira">Quinta</option> <option value="Sexta-feira">Sexta</option> <option value="Sábado">Sábado</option> </select> </div>
