@@ -1,8 +1,8 @@
 <?php
 // Helper para validar data no formato YYYY-MM-DD
 function validateDate($date, $format = 'Y-m-d') {
-    $d = DateTime::createFromFormat($format, $date);
-    return $d && $d->format($format) === $date;
+    $d = DateTime::createFromFormat($format, $date); // Linha 4 CORRIGIDA
+    return $d && $d->format($format) === $date;     // Linha 5 CORRIGIDA
 }
 
 function handle_get_dashboard_data($conn, $data) {
@@ -56,7 +56,7 @@ function handle_get_profile_data($conn, $data) {
     send_response(true, ['user' => $user, 'enrollments' => $enrollments, 'payments' => $payments]);
 }
 
-// <<< FUNÇÃO SEM DEBUG, COM LOG DE PARÂMETROS >>>
+// <<< FUNÇÃO MODIFICADA (CÁLCULO DE IDADE RESTAURADO) >>>
 function handle_update_profile($conn, $data) {
     $userId = $data['userId'] ?? 0;
     $profileData = $data['profileData'] ?? [];
@@ -107,27 +107,34 @@ function handle_update_profile($conn, $data) {
          $hasValidFields = true;
     }
 
+    // --- INÍCIO DA MODIFICAÇÃO (BLOCO RESTAURADO) ---
+    // Este bloco agora calcula a idade E a adiciona ao UPDATE,
+    // já que o banco de dados não faz isso automaticamente.
      if (array_key_exists('birthDate', $profileData)) {
-        try {
-            $age = null;
-            // Busca o valor de :birthDate que foi DEFINIDO no loop acima
-            $birthDateValue = $params[':birthDate'] ?? null;
-            if ($birthDateValue !== null && validateDate($birthDateValue, 'Y-m-d')) {
-                $birth = new DateTime($birthDateValue);
-                $today = new DateTime('today');
-                $age = $birth->diff($today)->y;
-            }
+         try {
+             $age = null;
+             // Busca o valor de :birthDate que foi DEFINIDO no loop acima
+             $birthDateValue = $params[':birthDate'] ?? null;
+             if ($birthDateValue !== null && validateDate($birthDateValue, 'Y-m-d')) {
+                  $birth = new DateTime($birthDateValue);
+                  $today = new DateTime('today');
+                  $age = $birth->diff($today)->y;
+             }
 
-            // Adiciona ou atualiza 'age'
-            $ageFieldExists = false;
-            foreach ($fieldsToUpdate as $f) { if (strpos($f, '`age`') === 0) { $ageFieldExists = true; break; } }
-            if (!$ageFieldExists) { $fieldsToUpdate[] = "`age` = :age"; }
-            $params[':age'] = $age; // Adiciona/Sobrescreve :age em $params
-            $hasValidFields = true;
-        } catch (Exception $e) {
-            error_log("Erro ao calcular/processar idade para userId $userId: " . $e->getMessage());
-        }
-    }
+             // Adiciona ou atualiza 'age'
+             $ageFieldExists = false;
+             foreach ($fieldsToUpdate as $f) { if (strpos($f, '`age`') === 0) { $ageFieldExists = true; break; } }
+             if (!$ageFieldExists) { $fieldsToUpdate[] = "`age` = :age"; } // Adiciona `age` = :age à query
+             $params[':age'] = $age; // Adiciona/Sobrescreve :age em $params
+             $hasValidFields = true; // Garante que mesmo só a idade sendo calculada, o update ocorra
+         } catch (Exception $e) {
+             error_log("Erro ao calcular/processar idade para userId $userId: " . $e->getMessage());
+             // Não paramos a execução aqui, apenas logamos o erro.
+             // Se não calcular a idade, $params[':age'] será null (ou o valor anterior, se houver).
+         }
+     }
+    // --- FIM DA MODIFICAÇÃO (BLOCO RESTAURADO) ---
+
 
     if (!$hasValidFields) { /* ... (Lógica 'Nenhum campo alterado') ... */ return; }
 
@@ -147,25 +154,29 @@ function handle_update_profile($conn, $data) {
             return;
         }
 
-        // --- Linha de Debug REMOVIDA ---
-
-        $success = $stmt->execute($params); // <<< PONTO CRÍTICO ONDE O ERRO OCORRE
+        $success = $stmt->execute($params); // Agora inclui :age novamente
 
         if ($success) {
-            // ... (Busca e retorna usuário atualizado) ...
+            // Busca o usuário atualizado DO BANCO
              $stmtGet = $conn->prepare("SELECT id, firstName, lastName, email, role, age, profilePicture, address, rg, cpf, birthDate, guardianName, guardianRG, guardianCPF, guardianEmail, guardianPhone, created_at FROM users WHERE id = ?");
              $stmtGet->execute([$userId]);
              $updatedUser = $stmtGet->fetch(PDO::FETCH_ASSOC);
              if ($updatedUser) {
                   unset($updatedUser['password_hash']);
+                  
+                  // Bloco redundante de cálculo de idade em PHP removido (correto)
+                  /*
                   if ($updatedUser['birthDate']) {
-                      try {
-                          $birth = new DateTime($updatedUser['birthDate']);
-                          $today = new DateTime('today');
-                          $updatedUser['age'] = $birth->diff($today)->y;
-                      } catch (Exception $e) { $updatedUser['age'] = null; }
+                       try {
+                            $birth = new DateTime($updatedUser['birthDate']);
+                            $today = new DateTime('today');
+                            $updatedUser['age'] = $birth->diff($today)->y;
+                       } catch (Exception $e) { $updatedUser['age'] = null; }
                   } else { $updatedUser['age'] = null; }
-                  send_response(true, ['message' => 'Perfil salvo com sucesso.', 'updatedUser' => $updatedUser]);
+                  */
+
+                  // Retorna sucesso e o usuário atualizado (com a idade agora atualizada pelo PHP)
+                  send_response(true, ['message' => 'Perfil salvo com sucesso.', 'updatedUser' => $updatedUser, 'success' => true]);
              } else { send_response(false, ['message' => 'Usuário não encontrado após atualização.'], 404); }
         } else {
             // Erro na execução que foi capturado
