@@ -3,8 +3,8 @@
  * Ponto de Entrada da API (Roteador Principal)
  */
 
-ini_set('display_errors', 1);
-ini_set('display_startup_errors', 1);
+ini_set('display_errors', 1); // 1 para desenvolvimento, 0 para produção
+ini_set('display_startup_errors', 1); // 1 para desenvolvimento, 0 para produção
 error_reporting(E_ALL);
 
 // Garante que o config.php seja incluído primeiro
@@ -48,7 +48,7 @@ require_once __DIR__ . '/handlers/ai_handlers.php';
 require_once __DIR__ . '/handlers/contract_handler.php';
 require_once __DIR__ . '/handlers/image_term_handler.php';
 require_once __DIR__ . '/handlers/receipt_handler.php';
-require_once __DIR__ . '/handlers/certificate_handler.php'; // <-- NOVO HANDLER
+require_once __DIR__ . '/handlers/certificate_handler.php'; // <-- Handler já incluído
 
 // Verifica se a conexão PDO está disponível (deve ter sido criada em config.php)
 if (!isset($conn) || !$conn instanceof PDO) {
@@ -112,25 +112,39 @@ try {
         'exportDatabase' => 'handle_export_database',
         // AI
         'generateAiDescription' => 'handle_generate_ai_description',
-        // --- NOVAS ROTAS DE CERTIFICADO ---
+        // --- ROTAS DE CERTIFICADO ---
         'generateCertificate' => 'handle_generate_certificate',
         'generateBulkCertificates' => 'handle_generate_bulk_certificates',
         'verifyCertificate' => 'handle_verify_certificate',
+        'getStudentCertificates' => 'handle_get_student_certificates', // <-- NOVA AÇÃO ADICIONADA AQUI
     ];
 
     // Verifica se a ação existe no mapa E se a função correspondente existe
     if (isset($actionMap[$action]) && function_exists($actionMap[$action])) {
 
         // --- DEFINIÇÃO DE ROTAS PÚBLICAS (NÃO REQUEREM LOGIN) ---
-        // (Assumindo que você ainda não tem um sistema de token/sessão)
+        // Ajustar conforme a implementação de autenticação
         $publicActions = ['login', 'register', 'requestPasswordReset', 'resetPassword', 'verifyCertificate'];
-        
-        // TODO: Adicionar verificação de autenticação aqui
+
+        // --- VERIFICAÇÃO DE AUTENTICAÇÃO (Exemplo) ---
         // if (!in_array($action, $publicActions)) {
-        //     // Verifique se o usuário está logado (ex: token, sessão)
-        //     // Se não estiver, envie: send_response(false, ['message' => 'Acesso negado.'], 401);
+        //     // Incluir aqui a lógica para verificar o token/sessão do usuário
+        //     // Exemplo: $userId = verify_token($_SERVER['HTTP_AUTHORIZATION'] ?? '');
+        //     // if (!$userId) {
+        //     //     send_response(false, ['message' => 'Acesso não autorizado ou token inválido.'], 401);
+        //     // }
+        //     // Se a rota for específica de aluno (como getStudentCertificates),
+        //     // verificar se o $userId corresponde ao studentId solicitado ou se é admin
+        //     // if ($action === 'getStudentCertificates' && isset($_GET['studentId'])) {
+        //     //      $requestedStudentId = filter_var($_GET['studentId'], FILTER_VALIDATE_INT);
+        //     //      // Recuperar role do usuário $userId
+        //     //      // $userRole = get_user_role($conn, $userId);
+        //     //      // if ($userRole !== 'admin' && $userRole !== 'superadmin' && $userId !== $requestedStudentId) {
+        //     //      //     send_response(false, ['message' => 'Você não tem permissão para ver os certificados deste aluno.'], 403);
+        //     //      // }
+        //     // }
         // }
-        
+
         // Determina a origem dos parâmetros (GET ou JSON body)
          $isGetAction = in_array($action, [
             'getDashboardData', 'getProfileData', 'getTeachers', 'getActiveStudents',
@@ -138,7 +152,8 @@ try {
             'getStudentPayments', 'getDefaultersReport', 'getSchoolProfile',
             'getSystemSettings', 'exportDatabase', 'generateReceipt',
             'generateContractPdf', 'generateImageTermsPdf', 'getEnrollmentDocuments',
-            'verifyCertificate' // <-- VERIFICAR É PÚBLICO E GET
+            'verifyCertificate', // <-- VERIFICAR É PÚBLICO E GET
+            'getStudentCertificates' // <-- NOVA AÇÃO GET ADICIONADA AQUI
         ]);
         $isJsonPostAction = in_array($action, [
             'login', 'register', 'changePassword', 'requestPasswordReset', 'resetPassword',
@@ -156,17 +171,20 @@ try {
         if ($isGetAction && $_SERVER['REQUEST_METHOD'] === 'GET') {
             $params = $_GET;
         } elseif ($isJsonPostAction && ($_SERVER['REQUEST_METHOD'] === 'POST' || $_SERVER['REQUEST_METHOD'] === 'PUT')) {
-            $params = $input;
+            $params = $input; // Recebe dados do corpo JSON da requisição
         } elseif ($isFlexibleAction) {
             // Aceita GET ou POST JSON
             if ($_SERVER['REQUEST_METHOD'] === 'GET') $params = $_GET;
             elseif ($_SERVER['REQUEST_METHOD'] === 'POST') $params = $input;
-            else { send_response(false, ['message' => 'Método HTTP não suportado para esta ação.'], 405); }
-        } else {
-             error_log("Ação '$action' chamada com método HTTP '{$_SERVER['REQUEST_METHOD']}' não esperado.");
-             if ($_SERVER['REQUEST_METHOD'] === 'POST') $params = $input;
-             elseif ($_SERVER['REQUEST_METHOD'] === 'GET') $params = $_GET;
-             else $params = $_REQUEST;
+            else { send_response(false, ['message' => 'Método HTTP não suportado para esta ação flexível.'], 405); }
+        }
+        // Fallback para outros métodos ou ações não mapeadas explicitamente
+        else {
+             error_log("Ação '$action' chamada com método HTTP '{$_SERVER['REQUEST_METHOD']}' não esperado ou não mapeado explicitamente para GET/POST JSON.");
+             // Tenta pegar de $_REQUEST como último recurso, mas prioriza GET/POST JSON se possível
+             if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($input)) $params = $input;
+             elseif ($_SERVER['REQUEST_METHOD'] === 'GET' && !empty($_GET)) $params = $_GET;
+             else $params = $_REQUEST; // Pode conter dados de GET, POST (form-data), etc.
         }
 
         // Remove 'action' dos parâmetros para não passar para a função handler

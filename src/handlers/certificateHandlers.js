@@ -1,7 +1,7 @@
 // src/handlers/certificateHandlers.js
-import { apiCall } from '../api.js';
-import { appState } from '../state.js';
-import { render } from '../router.js';
+import { apiCall } from '../api.js'; // <<< Certifique-se que o caminho está correto
+import { appState } from '../state.js'; // <<< Certifique-se que o caminho está correto
+import { render } from '../router.js'; // <<< Certifique-se que o caminho está correto
 
 // ----------------------------------------------------------------
 // FUNÇÃO HELPER INTERNA (Simplificação)
@@ -9,7 +9,6 @@ import { render } from '../router.js';
 
 /**
  * Converte um objeto File em uma string Base64.
- * Movido para cá para simplificar dependências.
  */
 function fileToBase64(file) {
   return new Promise((resolve, reject) => {
@@ -22,11 +21,12 @@ function fileToBase64(file) {
 
 
 // ----------------------------------------------------------------
-// HANDLERS EXISTENTES
+// HANDLERS DE CERTIFICADO
 // ----------------------------------------------------------------
 
-// Função auxiliar (não exportada)
-function getCertificateParams(form) {
+// <<< MODIFICADO: Renomeada para clareza >>>
+// Função auxiliar (não exportada) para ler dados de um formulário
+function getCertificateParamsFromForm(form) {
     const completionDate = form.elements.namedItem('completionDate').value;
     const overrideCargaHoraria = form.elements.namedItem('overrideCargaHoraria').value;
 
@@ -45,12 +45,12 @@ function getCertificateParams(form) {
 
 
 /**
- * Dispara a geração de um certificado individual (abre em nova aba).
+ * Dispara a geração de um certificado individual (abre em nova aba) - Usado via Formulário.
  */
-export function handleGenerateCertificate(event, studentId, courseId) {
+function handleGenerateCertificate(event, studentId, courseId) { // <<< Removido export daqui
     event.preventDefault(); // Previne submit do form
     const form = event.target;
-    const params = getCertificateParams(form);
+    const params = getCertificateParamsFromForm(form); // <<< Usa a função renomeada
     if (!params) return;
 
     const queryParams = new URLSearchParams({
@@ -66,14 +66,45 @@ export function handleGenerateCertificate(event, studentId, courseId) {
     window.open(url, '_blank');
 }
 
+// <<< ADICIONADO: Nova função para visualizar certificado da lista do aluno >>>
+/**
+ * Dispara a visualização/download de um certificado (abre em nova aba) - Usado na view 'myCertificates'.
+ */
+function handleViewCertificate(studentId, courseId, completionDate) { // <<< Removido export daqui
+    // Validações básicas
+    if (!studentId || !courseId || !completionDate) {
+        console.error("IDs de aluno/curso ou data de conclusão ausentes para visualizar certificado.");
+        alert("Não foi possível gerar o link do certificado. Dados incompletos.");
+        return;
+    }
+     // Validação simples de data YYYY-MM-DD
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(completionDate)) {
+        console.error('Formato de data inválido recebido:', completionDate);
+        alert('Formato de data inválido recebido. Use YYYY-MM-DD.');
+        return;
+    }
+
+    const queryParams = new URLSearchParams({
+        action: 'generateCertificate', // Usa a mesma action do backend
+        studentId: studentId,
+        courseId: courseId,
+        completionDate: completionDate,
+        overrideCargaHoraria: '' // Carga horária não precisa ser sobrescrita na visualização
+    });
+
+    // Chama a API via GET para abrir o PDF diretamente
+    const url = `api/index.php?${queryParams.toString()}`;
+    window.open(url, '_blank'); // Abre o PDF em uma nova aba
+}
+// <<< FIM DA ADIÇÃO >>>
 
 /**
  * Dispara a geração de certificados em massa para um curso (inicia download).
  */
-export function handleGenerateBulkCertificates(event, courseId) {
+function handleGenerateBulkCertificates(event, courseId) { // <<< Removido export daqui
      event.preventDefault(); // Previne submit do form
      const form = event.target;
-     const params = getCertificateParams(form);
+     const params = getCertificateParamsFromForm(form); // <<< Usa a função renomeada
      if (!params) return;
 
     const queryParams = new URLSearchParams({
@@ -86,19 +117,18 @@ export function handleGenerateBulkCertificates(event, courseId) {
     const url = `api/index.php?${queryParams.toString()}`;
     // Redireciona a janela atual para iniciar o download do ZIP
     window.location.href = url;
-    
+
     alert("A geração do arquivo ZIP foi iniciada. O download começará em breve. Se ocorrer um erro, um arquivo de texto com a mensagem será baixado.");
 }
 
 // ----------------------------------------------------------------
-// HANDLERS DO TEMPLATE (Corrigidos)
+// HANDLERS DO TEMPLATE (Edição de modelo)
 // ----------------------------------------------------------------
 
 /**
  * Handler para o preview da imagem de fundo do certificado.
- * Esta função é chamada pelo 'onchange' do input file.
  */
-export async function previewCertificateBackground(event) {
+async function previewCertificateBackground(event) { // <<< Removido export daqui
     const input = event.target;
     const preview = document.getElementById('certificate-bg-preview');
     const currentBgField = document.getElementById('currentCertificateBackground');
@@ -106,9 +136,8 @@ export async function previewCertificateBackground(event) {
 
     if (file && preview && currentBgField) {
         try {
-            // *** MUDANÇA: Chama a função fileToBase64 local ***
-            const base64String = await fileToBase64(file); 
-            
+            const base64String = await fileToBase64(file);
+
             preview.src = base64String;
             preview.style.display = 'block';
             currentBgField.value = base64String; // Guarda base64 para envio
@@ -121,9 +150,8 @@ export async function previewCertificateBackground(event) {
 
 /**
  * Handler para remover a imagem de fundo do certificado.
- * Esta função é chamada pelo 'onclick' do botão "Remover Imagem".
  */
-export function removeCertificateBackground() {
+function removeCertificateBackground() { // <<< Removido export daqui
     const preview = document.getElementById('certificate-bg-preview');
     const currentBgField = document.getElementById('currentCertificateBackground');
     const fileInput = document.getElementById('certificateBackgroundImageInput'); // ID do input file
@@ -139,3 +167,12 @@ export function removeCertificateBackground() {
         fileInput.value = ''; // Limpa o input file
     }
 }
+
+// <<< ADICIONADO/MODIFICADO: Agrupa todos os handlers para exportação >>>
+export const certificateHandlers = {
+    handleGenerateCertificate,
+    handleViewCertificate, // <<< Nova função adicionada aqui
+    handleGenerateBulkCertificates,
+    previewCertificateBackground,
+    removeCertificateBackground,
+};

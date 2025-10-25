@@ -76,7 +76,7 @@ function generate_certificate_pdf_and_hash($details, $completionDate, $overrideC
     }
 
     $meses = [1=>"Janeiro",2=>"Fevereiro",3=>"Março",4=>"Abril",5=>"Maio",6=>"Junho",7=>"Julho",8=>"Agosto",9=>"Setembro",10=>"Outubro",11=>"Novembro",12=>"Dezembro"];
-    $cidade_escola = 'Guarulhos';
+    $cidade_escola = 'Guarulhos'; // TODO: Buscar do school_profile futuramente se necessário
     $data_emissao_extenso = $cidade_escola . ', ' . date('d') . ' de ' . $meses[(int)date('n')] . ' de ' . date('Y');
     $hashData = "{$details['studentId']}|{$details['courseId']}|{$completionDateFormatted}|{$cargaHoraria}|" . microtime();
     $verificationHash = hash('sha256', $hashData);
@@ -143,7 +143,7 @@ function generate_certificate_pdf_and_hash($details, $completionDate, $overrideC
             $qrCodeSize = 30;
             // *** CORREÇÃO APLICADA AQUI ***
             // Usamos o valor da margem esquerda que definimos em SetMargins.
-            $qrCodeX = $leftMargin; 
+            $qrCodeX = $leftMargin;
             // *** CORREÇÃO APLICADA AQUI ***
             // A margem inferior (bMargin) é protegida. Usamos o valor que definimos em SetMargins.
             $bottomMargin = 25;
@@ -174,7 +174,7 @@ function generate_certificate_pdf_and_hash($details, $completionDate, $overrideC
  */
 function handle_generate_certificate(PDO $conn, $data) {
     error_reporting(E_ALL);
-    ini_set('display_errors', 0);
+    ini_set('display_errors', 0); // Desativar em produção, mas útil para debug
     ini_set('log_errors', 1);
 
     $studentId = isset($data['studentId']) ? filter_var($data['studentId'], FILTER_VALIDATE_INT) : 0;
@@ -188,68 +188,183 @@ function handle_generate_certificate(PDO $conn, $data) {
     try {
         $details = get_certificate_details($conn, $studentId, $courseId);
         if (!$details) {
+            // Mensagem mais clara se a matrícula não for encontrada
             throw new Exception("Não foi encontrada uma matrícula (enrollment) que conecte o Aluno ID:$studentId ao Curso ID:$courseId no banco de dados. Verifique os IDs ou se a matrícula existe.");
         }
-        
+
         $conn->beginTransaction();
 
         $pdfResult = generate_certificate_pdf_and_hash($details, $completionDate, $overrideCargaHoraria);
         $pdfData = $pdfResult['pdfData'];
         $verificationHash = $pdfResult['hash'];
 
+        // Tenta inserir o certificado, tratando duplicatas
         try {
             $stmtInsert = $conn->prepare("INSERT INTO certificates (student_id, course_id, completion_date, verification_hash) VALUES (?, ?, ?, ?)");
             $stmtInsert->execute([$studentId, $courseId, $completionDate, $verificationHash]);
         } catch (PDOException $e) {
+            // Código 1062 é erro de chave duplicada (MySQL/MariaDB)
             if ($e->errorInfo[1] == 1062) {
-                error_log("Aviso: Tentativa de inserir certificado duplicado no BD (S:$studentId, C:$courseId).");
+                // É uma duplicata, podemos ignorar o erro ou logar como aviso
+                error_log("Aviso: Tentativa de inserir certificado duplicado no BD (S:$studentId, C:$courseId). Hash já existe.");
+                // Não precisamos parar, o certificado já existe. O PDF será gerado normalmente.
             } else {
+                // Outro erro de BD, relança a exceção
                 throw $e;
             }
         }
-        $conn->commit();
+        $conn->commit(); // Comita a transação
 
         $safeFirstName = preg_replace('/[^a-z0-9_]/i', '_', $details['firstName'] ?? 'aluno');
         $filename = "certificado_" . $safeFirstName . "_" . $studentId . ".pdf";
 
+        // Limpa qualquer output buffer antes de enviar o PDF
         if (ob_get_level()) { ob_end_clean(); }
+
         header('Content-Type: application/pdf');
+        // 'inline' tenta exibir no navegador, 'attachment' força download
         header('Content-Disposition: inline; filename="' . $filename . '"');
         header('Content-Length: ' . strlen($pdfData));
         echo $pdfData;
-        exit();
+        exit(); // Termina a execução após enviar o PDF
 
     } catch (Exception $e) {
-        if ($conn->inTransaction()) { $conn->rollBack(); }
+        if ($conn->inTransaction()) { $conn->rollBack(); } // Desfaz transação em caso de erro
         $errorMessage = $e->getMessage();
         error_log("!!! Erro FATAL ao gerar certificado (S:$studentId, C:$courseId): " . $errorMessage);
 
+        // Se os cabeçalhos ainda não foram enviados, envia um erro HTTP
         if (!headers_sent()) {
-            header("HTTP/1.1 500 Internal Server Error");
-            header("Content-Type: text/plain; charset=utf-8");
-            echo "Erro interno ao gerar o certificado: " . $errorMessage;
+            // Usar um status code apropriado
+            http_response_code(500); // Internal Server Error
+            header("Content-Type: application/json; charset=utf-8"); // Envia erro como JSON
+            echo json_encode(['success' => false, 'data' => ['message' => "Erro interno ao gerar o certificado: " . $errorMessage]]);
         }
-        exit;
+        exit; // Termina a execução
     }
 }
+
 
 /**
  * Handler para gerar certificados em massa.
  */
 function handle_generate_bulk_certificates(PDO $conn, $data) {
-    // Esta função permanece igual à versão anterior.
+    // TODO: Implementar lógica para gerar múltiplos certificados (talvez para uma turma toda)
+    // - Receber lista de studentIds ou um courseId
+    // - Iterar, chamar get_certificate_details e generate_certificate_pdf_and_hash para cada um
+    // - Salvar todos os hashes no banco
+    // - Compilar os PDFs em um ZIP ou retornar links individuais? (Definir estratégia)
+    send_response(false, ['message' => 'Geração em massa ainda não implementada.'], 501); // 501 Not Implemented
 }
 
 /**
  * Handler para verificar certificado (PÚBLICO).
  */
 function handle_verify_certificate(PDO $conn, $data) {
-    // Esta função permanece igual à versão anterior.
+    $hash = isset($data['hash']) ? trim($data['hash']) : '';
+
+    if (empty($hash) || !preg_match('/^[a-f0-9]{64}$/i', $hash)) {
+        send_response(false, ['message' => 'Hash de verificação inválido ou ausente.'], 400);
+        return;
+    }
+
+    $sql = "SELECT
+                c.id as certificateId, c.completion_date, c.generated_at,
+                u.firstName as studentFirstName, u.lastName as studentLastName,
+                co.name as courseName
+            FROM
+                certificates c
+            INNER JOIN
+                users u ON c.student_id = u.id
+            INNER JOIN
+                courses co ON c.course_id = co.id
+            WHERE
+                c.verification_hash = :hash
+            LIMIT 1";
+
+    try {
+        $stmt = $conn->prepare($sql);
+        $stmt->execute([':hash' => $hash]);
+        $certificateInfo = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        if ($certificateInfo) {
+            // Formata a data para melhor leitura
+            $completionDate = new DateTime($certificateInfo['completion_date']);
+            $certificateInfo['completion_date_formatted'] = $completionDate->format('d/m/Y');
+            send_response(true, ['certificate' => $certificateInfo, 'message' => 'Certificado válido.']);
+        } else {
+            send_response(false, ['message' => 'Certificado não encontrado ou inválido.'], 404);
+        }
+    } catch (PDOException $e) {
+        error_log("Erro PDO ao verificar certificado (Hash: $hash): " . $e->getMessage());
+        send_response(false, ['message' => 'Erro ao consultar o banco de dados.'], 500);
+    }
 }
 
+/**
+ * NOVO Handler para buscar certificados de um aluno específico.
+ */
+function handle_get_student_certificates(PDO $conn, $data) {
+    // TODO: Adicionar verificação de permissão (o aluno só pode ver os próprios certificados, admin pode ver de todos?)
+    // Por enquanto, assume que o studentId é do aluno logado ou que a verificação será feita no frontend/middleware
+    $studentId = isset($data['studentId']) ? filter_var($data['studentId'], FILTER_VALIDATE_INT) : 0;
+
+    if ($studentId <= 0) {
+        send_response(false, ['message' => 'ID do aluno inválido.'], 400);
+        return;
+    }
+
+    $sql = "SELECT
+                cert.id as certificateId,
+                cert.course_id as courseId,
+                co.name as courseName,
+                cert.completion_date,
+                cert.verification_hash,
+                cert.generated_at
+            FROM
+                certificates cert
+            INNER JOIN
+                courses co ON cert.course_id = co.id
+            WHERE
+                cert.student_id = :studentId
+            ORDER BY
+                cert.completion_date DESC, co.name ASC";
+
+    try {
+        $stmt = $conn->prepare($sql);
+        $stmt->execute([':studentId' => $studentId]);
+        $certificates = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+        if ($certificates) {
+            // Formatar datas se necessário
+            foreach ($certificates as &$cert) {
+                try {
+                    $dateObj = new DateTime($cert['completion_date']);
+                    $cert['completion_date_formatted'] = $dateObj->format('d/m/Y');
+                } catch (Exception $e) {
+                    $cert['completion_date_formatted'] = 'Data inválida';
+                }
+            }
+            send_response(true, ['certificates' => $certificates]);
+        } else {
+            // Retorna sucesso com lista vazia, o frontend tratará a exibição
+            send_response(true, ['certificates' => [], 'message' => 'Nenhum certificado encontrado para este aluno.']);
+        }
+    } catch (PDOException $e) {
+        error_log("Erro PDO ao buscar certificados para o aluno ID $studentId: " . $e->getMessage());
+        send_response(false, ['message' => 'Erro ao consultar o banco de dados.'], 500);
+    }
+}
+
+
+// Garante que a função send_response exista (pode ser movida para um helper global)
 if (!function_exists('send_response')) {
     function send_response($success, $data, $statusCode = 200) {
-        if (headers_sent()) { return; }
+        if (headers_sent()) {
+            // Logar erro se cabeçalhos já foram enviados
+            error_log("Tentativa de chamar send_response após headers já enviados.");
+            return;
+        }
         http_response_code($statusCode);
         header('Content-Type: application/json; charset=utf-8');
         echo json_encode(['success' => $success, 'data' => $data]);

@@ -1,9 +1,10 @@
 // src/handlers/profileHandlers.js
-import { apiCall } from '../api.js';
-import { appState } from '../state.js';
-import { render } from '../router.js';
-import { fileToBase64 } from '../utils/helpers.js';
+import { apiCall } from '../api.js'; // Ajuste o caminho se necessário
+import { appState } from '../state.js'; // Ajuste o caminho se necessário
+import { render } from '../router.js'; // Ajuste o caminho se necessário
+import { fileToBase64 } from '../utils/helpers.js'; // Ajuste o caminho se necessário
 
+// <<< FUNÇÃO MODIFICADA >>>
 export async function handleUpdateProfile(event) {
     event.preventDefault();
     const form = event.target;
@@ -11,169 +12,136 @@ export async function handleUpdateProfile(event) {
     const userId = parseInt(formData.get('userId'), 10);
     const profileData = {};
     const submitButton = form.querySelector('button[type="submit"]');
+    const errorElement = document.getElementById('profile-update-error');
+    const successElement = document.getElementById('profile-update-success');
+
+    if (errorElement) errorElement.textContent = '';
+    if (successElement) successElement.textContent = '';
 
     formData.forEach((value, key) => {
-        // Inclui campo mesmo se for string vazia, mas verifica se é file input vazio
-        if (key !== 'profilePicture' || (form.elements.profilePicture && form.elements.profilePicture.files.length > 0)) {
-            const optionalNullableFields = ['age', 'rg', 'cpf', 'address', 'guardianName', 'guardianRG', 'guardianCPF', 'guardianEmail', 'guardianPhone'];
-            // Se for um campo opcional e estiver vazio, envia null, senão envia o valor (trim se string)
-            if (optionalNullableFields.includes(key) && String(value).trim() === '') {
-                 profileData[key] = null;
-            } else if (typeof value === 'string') {
-                 profileData[key] = value.trim();
-            } else {
-                 profileData[key] = value;
-            }
-        }
+        // Ignora foto (tratada depois) E ignora idade (calculada no backend)
+        // <<< MODIFICADO: Adiciona key === 'age' para ignorar >>>
+        if (key === 'profilePicture' || key === 'age') return;
+
+        const optionalNullableFields = [
+            'lastName', /*'age',*/ 'address', 'rg', 'cpf', 'birthDate',
+            'guardianName', 'guardianRG', 'guardianCPF', 'guardianEmail', 'guardianPhone'
+        ];
+
+        if (optionalNullableFields.includes(key) && String(value).trim() === '') {
+             profileData[key] = null;
+        } else if (key === 'birthDate' && value === '') {
+             profileData[key] = null;
+        } else if (typeof value === 'string') {
+             profileData[key] = value.trim();
+        } else { profileData[key] = value; }
     });
 
-    const profilePicFile = formData.get('profilePicture');
+    // Tratamento da Imagem de Perfil
+    const profilePicInput = form.elements.namedItem('profilePicture');
+    const profilePicFile = profilePicInput?.files?.[0];
     if (profilePicFile instanceof File && profilePicFile.size > 0) {
-        profileData.profilePicture = await fileToBase64(profilePicFile);
+         try { profileData.profilePicture = await fileToBase64(profilePicFile); }
+         catch (e) { /* ... tratamento de erro ... */ }
+    } else if (form.elements.namedItem('removeProfilePicture')?.value === 'true') {
+         profileData.profilePicture = null;
     }
-    delete profileData.userId; // Não envia userId dentro de profileData
 
     if (submitButton) submitButton.disabled = true;
 
     try {
-        await apiCall('updateProfile', { userId, profileData });
-        alert('Perfil atualizado!');
+        const response = await apiCall('updateProfile', { userId, profileData });
 
-        // Função para atualizar dados localmente
-        const updateLocalUserData = (user) => {
-            if (!user) return null;
-            const updatedUser = { ...user };
-            for (const key in profileData) {
-                // Não atualiza a senha aqui, apenas outros campos
-                if (key !== 'password' && key !== 'profilePicture') {
-                    updatedUser[key] = profileData[key];
+        // --- INÍCIO DA CORREÇÃO ---
+        // 1. Verificamos apenas por 'response.success' (ou 'response.status').
+        //    Não exigimos mais o 'response.updatedUser'.
+        if (response && (response.success || response.status === 'success')) {
+            
+            // 2. Usamos 'response.updatedUser' SE ele vier, 
+            //    senão, usamos 'profileData' (os dados que acabamos de enviar).
+            const updatedUser = response.updatedUser || profileData;
+
+            if (successElement) successElement.textContent = 'Perfil atualizado com sucesso!'; else alert('Perfil atualizado!');
+
+            // Função interna para atualizar dados locais (inalterada)
+            const updateLocalUserData = (targetUser, sourceData) => {
+                if (!targetUser) return null;
+                const newUser = { ...targetUser };
+                for (const key in sourceData) {
+                    // Se a chave existir no 'profileData' (sourceData)
+                    // E também no 'appState.currentUser' (targetUser/newUser)
+                    // ela será atualizada.
+                    if (Object.hasOwnProperty.call(newUser, key)) {
+                         newUser[key] = sourceData[key];
+                    }
                 }
-            }
-            // Atualiza a foto se foi enviada
-            if (profileData.profilePicture) {
-                updatedUser.profilePicture = profileData.profilePicture;
-            }
-            return updatedUser;
-        };
+                // Garante que a foto (que pode não estar no 'targetUser' 
+                // se for null) seja atualizada.
+                if (sourceData.profilePicture || sourceData.profilePicture === null) {
+                    newUser.profilePicture = sourceData.profilePicture;
+                }
+                return newUser;
+            };
 
-        // Atualiza currentUser se for o próprio perfil
-        if (appState.currentUser && appState.currentUser.id === userId) {
-            appState.currentUser = updateLocalUserData(appState.currentUser);
-            localStorage.setItem('currentUser', JSON.stringify(appState.currentUser));
+            // Atualiza estado local (agora funciona)
+            if (appState.currentUser && appState.currentUser.id === userId) {
+                appState.currentUser = updateLocalUserData(appState.currentUser, updatedUser);
+                localStorage.setItem('currentUser', JSON.stringify(appState.currentUser));
+            }
+            const userIndex = appState.users.findIndex(u => u.id === userId);
+            if (userIndex > -1) {
+                appState.users[userIndex] = updateLocalUserData(appState.users[userIndex], updatedUser);
+            }
+            
+            // 3. Aumentamos o delay para 1 segundo (1000ms)
+            //    Assim o usuário consegue ler a msg de sucesso antes do refresh.
+            setTimeout(() => render(), 1000); 
+
+        } else { 
+            // O erro original ("Resposta inesperada") era lançado aqui.
+            throw new Error(response?.data?.message || 'Falha ao atualizar perfil. Resposta inesperada da API.'); 
         }
-        // Atualiza na lista de usuários (para admin view)
-        const userIndex = appState.users.findIndex(u => u.id === userId);
-        if (userIndex > -1) {
-            appState.users[userIndex] = updateLocalUserData(appState.users[userIndex]);
-        }
-        render(); // Re-renderiza a view de perfil
+        // --- FIM DA CORREÇÃO ---
+
     } catch (e) {
-        alert(e.message || 'Erro ao atualizar perfil.');
+        console.error("Erro em handleUpdateProfile:", e);
+        if (errorElement) errorElement.textContent = e.message || 'Erro ao atualizar perfil.';
+        else alert(e.message || 'Erro ao atualizar perfil.');
     } finally {
         if (submitButton) submitButton.disabled = false;
     }
 }
 
+// ... (handleUpdateSchoolProfile, handleChangePassword, previewImage, removeProfileImage como na versão anterior) ...
 export async function handleUpdateSchoolProfile(event) {
     event.preventDefault();
     const form = event.target;
     const formData = new FormData(form);
     const profileData = {};
     const submitButton = form.querySelector('button[type="submit"]');
-
-    formData.forEach((value, key) => {
-        // Processa apenas se não for input de file vazio
-        if (!['schoolProfilePicture', 'signatureImage'].includes(key) || (form.elements[key] && form.elements[key].files.length > 0)) {
-             profileData[key] = typeof value === 'string' ? value.trim() : value;
-        }
-    });
-
-    const schoolPicFile = formData.get('schoolProfilePicture');
-    if (schoolPicFile instanceof File && schoolPicFile.size > 0) {
-        profileData.profilePicture = await fileToBase64(schoolPicFile);
-    }
-     // Remove a chave se não houver arquivo (para não sobrescrever com string vazia)
-    else { delete profileData.schoolProfilePicture; }
-
-
-    const signatureFile = formData.get('signatureImage');
-    if (signatureFile instanceof File && signatureFile.size > 0) {
-        profileData.signatureImage = await fileToBase64(signatureFile);
-    }
-     // Remove a chave se não houver arquivo
-    else { delete profileData.signatureImage; }
-
-
+    const errorElement = document.getElementById('school-profile-update-error');
+    const successElement = document.getElementById('school-profile-update-success');
+    if (errorElement) errorElement.textContent = ''; if (successElement) successElement.textContent = '';
+    formData.forEach((value, key) => { if (!['schoolProfilePicture', 'signatureImage'].includes(key)) { profileData[key] = typeof value === 'string' ? value.trim() : value; } });
+    const schoolPicInput = form.elements.namedItem('schoolProfilePicture'); const schoolPicFile = schoolPicInput?.files?.[0];
+    if (schoolPicFile instanceof File && schoolPicFile.size > 0) { try { profileData.profilePicture = await fileToBase64(schoolPicFile); } catch (e) { if (errorElement) errorElement.textContent = 'Erro ao processar logo da escola.'; else alert('Erro ao processar logo da escola.'); if (submitButton) submitButton.disabled = false; return; } } else if (form.elements.namedItem('removeSchoolProfilePicture')?.value === 'true') { profileData.profilePicture = null; }
+    const signatureInput = form.elements.namedItem('signatureImage'); const signatureFile = signatureInput?.files?.[0];
+    if (signatureFile instanceof File && signatureFile.size > 0) { try { profileData.signatureImage = await fileToBase64(signatureFile); } catch (e) { if (errorElement) errorElement.textContent = 'Erro ao processar imagem da assinatura.'; else alert('Erro ao processar imagem da assinatura.'); if (submitButton) submitButton.disabled = false; return; } } else if (form.elements.namedItem('removeSignatureImage')?.value === 'true') { profileData.signatureImage = null; }
     if (submitButton) submitButton.disabled = true;
-
-    try {
-        const data = await apiCall('updateSchoolProfile', { profileData });
-        appState.schoolProfile = data.profile; // Atualiza o perfil da escola no estado global
-        alert('Dados da unidade atualizados!');
-        render(); // Re-renderiza a view do perfil da escola
-    } catch (e) {
-        alert(e.message || 'Erro ao atualizar dados da unidade.');
-    } finally {
-        if (submitButton) submitButton.disabled = false;
-    }
+    try { const response = await apiCall('updateSchoolProfile', { profileData }); if (response && response.success && response.profile) { appState.schoolProfile = response.profile; if (successElement) successElement.textContent = 'Dados da unidade atualizados!'; else alert('Dados da unidade atualizados!'); setTimeout(() => render(), 500); } else { throw new Error(response?.data?.message || 'Falha ao atualizar dados. Resposta inesperada.'); } } catch (e) { console.error("Erro em handleUpdateSchoolProfile:", e); if (errorElement) errorElement.textContent = e.message || 'Erro ao atualizar dados da unidade.'; else alert(e.message || 'Erro ao atualizar dados da unidade.'); } finally { if (submitButton) submitButton.disabled = false; }
 }
-
 export async function handleChangePassword(event) {
     event.preventDefault();
-    const form = event.target;
-    const formData = new FormData(form);
-    const userId = parseInt(formData.get('userId'), 10);
-    const currentPassword = formData.get('currentPassword');
-    const newPassword = formData.get('newPassword');
-    const confirmPassword = formData.get('confirmPassword');
-    const submitButton = form.querySelector('button[type="submit"]');
-    // Assume que há um <p class="error-message"> DENTRO da seção de alterar senha no profile.js
-    const errorElement = form.closest('.admin-only-section').querySelector('.error-message');
-    // Se não encontrar, tenta buscar por ID (caso adicione um ID específico)
-    // const errorElement = document.getElementById('change-password-error');
-
-    if (errorElement) errorElement.textContent = ''; // Limpa erro anterior
-
-    if (!currentPassword || !newPassword || !confirmPassword) {
-        const msg = "Preencha todos os campos.";
-        if (errorElement) errorElement.textContent = msg; else alert(msg);
-        return;
-    }
-    if (newPassword !== confirmPassword) {
-        const msg = 'As novas senhas não coincidem.';
-        if (errorElement) errorElement.textContent = msg; else alert(msg);
-        return;
-    }
-    if (newPassword.length < 6) {
-        const msg = 'A nova senha deve ter pelo menos 6 caracteres.';
-        if (errorElement) errorElement.textContent = msg; else alert(msg);
-        return;
-    }
-
+    const form = event.target; const formData = new FormData(form); const userId = parseInt(formData.get('userId'), 10); const currentPassword = formData.get('currentPassword'); const newPassword = formData.get('newPassword'); const confirmPassword = formData.get('confirmPassword'); const submitButton = form.querySelector('button[type="submit"]'); const errorElement = document.getElementById('change-password-error'); if (errorElement) errorElement.textContent = '';
+    if (!currentPassword || !newPassword || !confirmPassword) { const msg = "Preencha todos os campos de senha."; if (errorElement) errorElement.textContent = msg; else alert(msg); return; } if (newPassword !== confirmPassword) { const msg = 'As novas senhas não coincidem.'; if (errorElement) errorElement.textContent = msg; else alert(msg); return; } if (newPassword.length < 6) { const msg = 'A nova senha deve ter pelo menos 6 caracteres.'; if (errorElement) errorElement.textContent = msg; else alert(msg); return; }
     if (submitButton) submitButton.disabled = true;
-
-    try {
-        await apiCall('changePassword', { userId, currentPassword, newPassword });
-        alert('Senha alterada com sucesso!');
-        form.reset();
-    } catch (e) {
-        if (errorElement) errorElement.textContent = e.message || 'Erro ao alterar senha.';
-        else alert(e.message || 'Erro ao alterar senha.');
-    } finally {
-         if (submitButton) submitButton.disabled = false;
-    }
+    try { const response = await apiCall('changePassword', { userId, currentPassword, newPassword }); if (response && response.success) { alert('Senha alterada com sucesso!'); form.reset(); } else { throw new Error(response?.data?.message || 'Falha ao alterar senha.'); } } catch (e) { console.error("Erro em handleChangePassword:", e); if (errorElement) errorElement.textContent = e.message || 'Erro ao alterar senha.'; else alert(e.message || 'Erro ao alterar senha.'); } finally { if (submitButton) submitButton.disabled = false; }
 }
-
-// Funções de Preview (mantidas)
-export function previewProfileImage(event) {
-    const input = event.target; const preview = document.getElementById('profile-pic-preview');
-    if (input.files && input.files[0] && preview) { const reader = new FileReader(); reader.onload = (e) => { if (e.target?.result) preview.src = e.target.result; }; reader.readAsDataURL(input.files[0]); }
+export function previewImage(event, previewElementId) {
+    const input = event.target; const preview = document.getElementById(previewElementId); if (input.files && input.files[0] && preview) { const reader = new FileReader(); reader.onload = (e) => { if (e.target?.result) { preview.src = e.target.result; preview.style.display = 'block'; } }; reader.readAsDataURL(input.files[0]); const removeInputId = previewElementId.replace('-preview', '-remove'); const removeInput = document.getElementById(removeInputId); if (removeInput) removeInput.value = 'false'; }
 }
-export function previewSchoolImage(event) {
-    const input = event.target; const preview = document.getElementById('school-pic-preview');
-    if (input.files && input.files[0] && preview) { const reader = new FileReader(); reader.onload = (e) => { if (e.target?.result) preview.src = e.target.result; }; reader.readAsDataURL(input.files[0]); }
+export function removeProfileImage() {
+    const preview = document.getElementById('profile-pic-preview'); const input = document.getElementById('profilePictureInput'); let removeInput = document.getElementById('removeProfilePicture'); if (!removeInput && preview) { removeInput = document.createElement('input'); removeInput.type = 'hidden'; removeInput.id = 'removeProfilePicture'; removeInput.name = 'removeProfilePicture'; preview.closest('form').appendChild(removeInput); }
+    if (preview) { preview.src = 'assets/default-user.png'; } if (input) { input.value = ''; } if (removeInput) { removeInput.value = 'true'; }
 }
-export function previewSignatureImage(event) {
-    const input = event.target; const preview = document.getElementById('signature-preview');
-    if (input.files && input.files[0] && preview) { const reader = new FileReader(); reader.onload = (e) => { if (e.target?.result) preview.src = e.target.result; }; reader.readAsDataURL(input.files[0]); }
-}
+export const profileHandlers = { handleUpdateProfile, handleUpdateSchoolProfile, handleChangePassword, previewImage, removeProfileImage };

@@ -3,7 +3,8 @@
  */
 export const appState = {
     currentUser: null,
-    currentView: 'login',
+    // <<<< ADICIONADO COMENTÁRIO: 'myCertificates' é um valor possível >>>>
+    currentView: 'login', // Ex: 'login', 'dashboard', 'profile', 'myCertificates', etc.
 
     // Dados buscados da API
     users: [],
@@ -45,14 +46,29 @@ export const appState = {
         isOpen: false,
         paymentIds: [],
         content: null,
+        // <<< Adicione isReenrollment aqui se necessário para o modal PIX >>>
+        // isReenrollment: false,
     },
     documentTemplatesState: {
         isVisible: false,
+        // <<< Considere adicionar outros estados relacionados a templates aqui se precisar >>>
+        // isEditing: false,
+        // contractTemplate: '',
+        // imageTermsTemplate: '',
+        // certificateTemplate: '',
+        // certificateBackground: null,
+        // signatureImage: null,
+        // siteUrl: '',
     },
-    // --- NOVO ESTADO ---
+    // --- NOVO ESTADO --- <<< Este já estava no seu código original >>>
     enrollmentModalState: {
         isOpen: false,
         data: null, // Guardará os dados recebidos da API getEnrollmentDocuments
         isReenrollment: false // Indica se é um fluxo de rematrícula
     }
+    // <<< Considere adicionar outros estados globais aqui, como isLoading, errorMessage, etc. >>>
+    // isLoading: false,
+    // errorMessage: null,
+    // successMessage: null,
+    // cardOrder: []
 };
