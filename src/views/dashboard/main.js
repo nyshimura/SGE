@@ -19,7 +19,7 @@ export async function renderDashboard(appRoot) {
     }
 
     // Mostra loading enquanto busca dados
-    if (appRoot) appRoot.innerHTML = '<div class="loading-placeholder">A carregar dados do painel...</div>';
+    if (appRoot) appRoot.innerHTML = '<div class="loading-placeholder">Se ainda não carregou atualize a página!</div>';
 
     try {
         const data = await apiCall('getDashboardData', { userId: currentUser.id, role: currentUser.role }, 'GET');
