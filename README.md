@@ -98,7 +98,8 @@ Após a instalação, você pode acessar o sistema com as credenciais padrão:
   * **Personalize seus Contratos e termos de imagem**
 
 **Verificar Certificado**
-     Acesse `http://localhost/sge/verificar` em seu navegador.
+  * Acesse `http://localhost/sge/verificar` em seu navegador.
+
 
 ---
 
