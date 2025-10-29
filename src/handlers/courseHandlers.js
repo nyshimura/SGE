@@ -8,7 +8,7 @@ export async function handleCreateCourse(event) {
     const form = event.target;
     const formData = new FormData(form);
     const courseData = Object.fromEntries(formData.entries());
-    
+
     // Normaliza valores vazios ou ausentes
     courseData.totalSlots = courseData.totalSlots || null;
     courseData.installments = courseData.installments || null;
@@ -36,7 +36,7 @@ export async function handleUpdateCourse(event) {
     const formData = new FormData(form);
     const courseData = Object.fromEntries(formData.entries());
     const courseId = parseInt(courseData.courseId, 10);
-    
+
     // Normaliza valores vazios ou ausentes
     courseData.totalSlots = courseData.totalSlots || null;
     courseData.installments = courseData.installments || null;
@@ -106,18 +106,25 @@ export async function handleSaveAttendance(event) {
     event.preventDefault();
     const form = event.target;
     const courseId = parseInt(form.dataset.courseId, 10);
-    const date = form.elements.namedItem('attendanceDate').value;
+    // <<< MODIFICADO: Pega a data do input específico para salvar (se existir), senão usa a data selecionada no estado >>>
+    const dateInput = form.elements.namedItem('attendanceDate');
+    const date = dateInput ? dateInput.value : appState.attendanceState.selectedDate; // Pega do form se houver, senão do estado
     const formData = new FormData(form);
     const absentStudentIds = formData.getAll('absent').map(id => parseInt(id, 10));
     const submitButton = form.querySelector('button[type="submit"]');
+
+    if (!date) {
+        alert('Erro: Data não selecionada para salvar a frequência.');
+        return;
+    }
 
     if(submitButton) submitButton.disabled = true;
 
     try {
         await apiCall('saveAttendance', { courseId, date, absentStudentIds });
         alert('Frequência salva!');
-        appState.attendanceState.history = {}; // Limpa histórico local
-        render();
+        appState.attendanceState.history = {}; // Limpa histórico local para forçar recarga
+        render(); // Re-renderiza para atualizar a view
     } catch(e) {
         alert(e.message || 'Erro ao salvar frequência.');
     } finally {
@@ -125,7 +132,37 @@ export async function handleSaveAttendance(event) {
     }
 }
 
-export function handleAttendanceDateChange(event) {
-    appState.attendanceState.selectedDate = event.target.value;
-    render();
+
+// <<< RENOMEADO E MODIFICADO: De Date para Month >>>
+export function handleAttendanceMonthChange(event) {
+    const newMonth = event.target.value; // Formato YYYY-MM
+    if (newMonth) {
+        appState.attendanceState.selectedMonth = newMonth;
+        // Opcional: Atualizar selectedDate para o primeiro dia do mês novo
+        const firstDayOfMonth = newMonth + '-01';
+        // Verifica se a data é válida
+        if (!isNaN(new Date(firstDayOfMonth).getTime())) {
+             const today = new Date().toISOString().split('T')[0];
+             // Define para o primeiro dia do mês, mas não além de hoje
+             appState.attendanceState.selectedDate = firstDayOfMonth > today ? today : firstDayOfMonth;
+        }
+        render(); // Re-renderiza a view com o novo mês selecionado
+    }
 }
+
+// <<< ADICIONADO: Handler para mudar a data específica para salvar >>>
+export function handleAttendanceDateChangeForSave(event) {
+    appState.attendanceState.selectedDate = event.target.value;
+    render(); // Renderiza para atualizar a lista de alunos (presentes/ausentes) exibida no formulário
+}
+
+// Adiciona as novas funções exportadas para uso global se necessário (em index.js)
+export const courseHandlers = {
+    handleCreateCourse,
+    handleUpdateCourse,
+    handleEndCourse,
+    handleReopenCourse,
+    handleSaveAttendance,
+    handleAttendanceMonthChange, // <<< Nome atualizado
+    handleAttendanceDateChangeForSave // <<< Nova função
+};

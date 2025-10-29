@@ -1,9 +1,16 @@
 /**
  * Estado global da aplicação.
  */
+
+// <<< ADICIONADO: Função para obter o mês atual no formato YYYY-MM >>>
+function getCurrentMonthISO() {
+    const now = new Date();
+    // Formato YYYY-MM
+    return `${now.getFullYear()}-${(now.getMonth() + 1).toString().padStart(2, '0')}`;
+}
+
 export const appState = {
     currentUser: null,
-    // <<<< ADICIONADO COMENTÁRIO: 'myCertificates' é um valor possível >>>>
     currentView: 'login', // Ex: 'login', 'dashboard', 'profile', 'myCertificates', etc.
 
     // Dados buscados da API
@@ -27,11 +34,13 @@ export const appState = {
         courseId: 'all',
         enrollmentStatus: 'all',
     },
+    // <<< MODIFICADO: attendanceState agora inclui selectedMonth >>>
     attendanceState: {
-        courseId: null,
-        selectedDate: new Date().toISOString().split('T')[0],
-        students: [],
-        history: {},
+        courseId: null, // Pode remover se não for usado diretamente aqui
+        selectedDate: new Date().toISOString().split('T')[0], // Mantém data atual por padrão
+        selectedMonth: getCurrentMonthISO(), // <<< NOVO: Guarda o mês selecionado (ex: '2025-10')
+        students: [], // <<<< Você tinha isso aqui, mantido >>>>
+        history: {} // <<< MODIFICADO: Será preenchido com registros do mês
     },
     financialState: {
         isDashboardVisible: false,
@@ -46,29 +55,22 @@ export const appState = {
         isOpen: false,
         paymentIds: [],
         content: null,
-        // <<< Adicione isReenrollment aqui se necessário para o modal PIX >>>
-        // isReenrollment: false,
     },
     documentTemplatesState: {
         isVisible: false,
-        // <<< Considere adicionar outros estados relacionados a templates aqui se precisar >>>
-        // isEditing: false,
-        // contractTemplate: '',
-        // imageTermsTemplate: '',
-        // certificateTemplate: '',
-        // certificateBackground: null,
-        // signatureImage: null,
-        // siteUrl: '',
+        // isEditing: false, // Descomente se precisar
+        // contractTemplate: '', // Descomente e inicialize se precisar
+        // imageTermsTemplate: '', // Descomente e inicialize se precisar
+        // certificateTemplate: '', // Descomente e inicialize se precisar
+        // certificateBackground: null, // Descomente e inicialize se precisar
+        // signatureImage: null, // Descomente e inicialize se precisar
+        // siteUrl: '', // Descomente e inicialize se precisar
     },
-    // --- NOVO ESTADO --- <<< Este já estava no seu código original >>>
     enrollmentModalState: {
         isOpen: false,
         data: null, // Guardará os dados recebidos da API getEnrollmentDocuments
         isReenrollment: false // Indica se é um fluxo de rematrícula
     }
-    // <<< Considere adicionar outros estados globais aqui, como isLoading, errorMessage, etc. >>>
-    // isLoading: false,
-    // errorMessage: null,
-    // successMessage: null,
-    // cardOrder: []
+    // isLoading: false, // Considere adicionar
+    // errorMessage: null, // Considere adicionar
 };

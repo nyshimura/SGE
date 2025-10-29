@@ -1269,3 +1269,116 @@ footer {
   flex-grow: 1;
   margin-right: 1rem;
 }
+/* === ESTILOS PARA HISTÓRICO MENSAL/SEMANAL === */
+.monthly-attendance-history {
+    max-height: 500px; /* Scroll geral para todo o histórico se for muito longo */
+    overflow-y: auto;
+}
+
+.week-section {
+    margin-bottom: 1.5rem;
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius);
+    padding: 1rem;
+    background-color: var(--subtle-bg);
+}
+
+.week-section h4 {
+    margin-top: 0;
+    margin-bottom: 0.8rem;
+    font-size: 1rem;
+    color: var(--primary-color);
+    border-bottom: 1px solid var(--border-color);
+    padding-bottom: 0.4rem;
+}
+
+/* Ajusta o table-wrapper DENTRO do histórico mensal */
+.monthly-attendance-history .table-wrapper {
+    border: none; /* Remove borda/fundo duplicado dentro da seção da semana */
+    margin-bottom: 0;
+    background-color: transparent;
+    max-height: 350px; /* Mantém o scroll por semana */
+    overflow-y: auto; /* Garante a rolagem vertical */
+    overflow-x: auto; /* Adiciona rolagem horizontal se necessário */
+}
+
+.monthly-attendance-history th,
+.monthly-attendance-history td {
+    font-size: 0.8rem; /* Fonte menor para caber mais */
+    padding: 0.4rem 0.5rem; /* Padding menor */
+    text-align: center; /* Centraliza P/F */
+    white-space: nowrap; /* Evita quebra de linha nas células */
+}
+
+.monthly-attendance-history th {
+    background-color: var(--card-background); /* Fundo para cabeçalho */
+    position: sticky; /* Fixa cabeçalho ao rolar a tabela verticalmente */
+    top: 0;
+    z-index: 5; /* Abaixo do cabeçalho da página e coluna de nome */
+}
+
+/* Primeira coluna (Nome do Aluno) alinhada à esquerda e fixa */
+.monthly-attendance-history td:first-child,
+.monthly-attendance-history th:first-child {
+    text-align: left;
+    min-width: 150px; /* Garante espaço para o nome */
+    position: sticky; /* Fixa a coluna de nomes ao rolar horizontalmente */
+    left: 0;
+    background-color: var(--card-background); /* Fundo para cobrir o conteúdo ao rolar */
+    z-index: 6; /* Acima das células normais e do cabeçalho da tabela */
+}
+/* Garante que o cabeçalho da primeira coluna fique acima de tudo */
+.monthly-attendance-history th:first-child {
+    z-index: 7;
+}
+
+/* Cores de Status (usando variáveis já definidas) */
+.status-present {
+    color: var(--status-present-text, var(--status-approved-text)); /* Usa variável específica ou fallback */
+}
+
+.status-absent {
+    color: var(--status-absent-text);
+    font-weight: bold;
+    background-color: var(--status-absent-bg); /* Fundo sutil para faltas */
+}
+
+.status-none {
+    color: var(--status-none-text, var(--secondary-color)); /* Usa variável específica ou fallback */
+}
+
+/* Estilo para Aviso */
+.notice-warning {
+    background-color: var(--status-absent-bg);
+    color: var(--status-absent-text);
+    border-left: 4px solid var(--status-absent-text);
+    padding: 0.8rem;
+    margin-bottom: 1rem;
+    font-size: var(--font-size-small);
+}
+
+/* Estilo para scrollbar mais fina (Opcional, funciona em navegadores WebKit) */
+.thin-scrollbar::-webkit-scrollbar {
+    width: 6px;
+    height: 6px; /* Também para scroll horizontal */
+}
+.thin-scrollbar::-webkit-scrollbar-track {
+    background: #f1f1f1; /* Cor do trilho */
+    border-radius: 3px;
+}
+.thin-scrollbar::-webkit-scrollbar-thumb {
+    background-color: #ccc; /* Cor da barra */
+    border-radius: 3px;
+}
+.thin-scrollbar::-webkit-scrollbar-thumb:hover {
+    background-color: #aaa; /* Cor da barra ao passar o mouse */
+}
+
+.dashboard-grid-freq {
+    display: flex
+;
+    /* gap: 20px; */
+    grid-template-columns: repeat(auto-fit, minmax(50px, 1fr));
+    gap: 1.5rem;
+    flex-direction: column;
+}

@@ -26,12 +26,12 @@ export async function renderEditCourseView(course) {
                  <div class="form-group"> <label>Pagamento</label> <div class="radio-group"> <label><input type="radio" name="paymentType" value="recorrente" ${course.paymentType === 'recorrente' ? 'checked' : ''} onchange="document.getElementById('edit-installments-group').style.display='none'"> Recorrente</label> <label><input type="radio" name="paymentType" value="parcelado" ${course.paymentType === 'parcelado' ? 'checked' : ''} onchange="document.getElementById('edit-installments-group').style.display='block'"> Parcelado</label> </div> </div>
                  <div class="form-group" id="edit-installments-group" style="${course.paymentType === 'parcelado' ? 'display: block;' : 'display: none;'}"> <label for="edit-installments">Nº Parcelas</label> <input type="number" id="edit-installments" name="installments" min="1" value="${course.installments || ''}"> </div>
 
-                {/* --- CAMPO CARGA HORÁRIA --- */}
+                
                 <div class="form-group">
                     <label for="carga_horaria">Carga Horária (p/ certificado)</label>
                     <input type="text" id="carga_horaria" name="carga_horaria" value="${course.carga_horaria || ''}" placeholder="Ex: 40 horas">
                 </div>
-                {/* ------------------------- */}
+                
 
                  <div class="form-grid">
                     <div class="form-group"> <label for="dayOfWeek">Dia</label> <select id="dayOfWeek" name="dayOfWeek"> <option value="" ${!course.dayOfWeek ? 'selected' : ''}>Nenhum</option> <option value="Domingo" ${course.dayOfWeek === 'Domingo' ? 'selected' : ''}>Dom</option> <option value="Segunda-feira" ${course.dayOfWeek === 'Segunda-feira' ? 'selected' : ''}>Seg</option> <option value="Terça-feira" ${course.dayOfWeek === 'Terça-feira' ? 'selected' : ''}>Ter</option> <option value="Quarta-feira" ${course.dayOfWeek === 'Quarta-feira' ? 'selected' : ''}>Qua</option> <option value="Quinta-feira" ${course.dayOfWeek === 'Quinta-feira' ? 'selected' : ''}>Qui</option> <option value="Sexta-feira" ${course.dayOfWeek === 'Sexta-feira' ? 'selected' : ''}>Sex</option> <option value="Sábado" ${course.dayOfWeek === 'Sábado' ? 'selected' : ''}>Sáb</option> </select> </div>
@@ -43,27 +43,6 @@ export async function renderEditCourseView(course) {
             </form>
         </div>
 
-        {/* --- SEÇÃO GERAÇÃO EM MASSA --- */}
-        <div class="card full-width">
-            <h3 class="card-title">Certificados (Geração em Massa)</h3>
-            <p style="font-size: 0.9rem; color: #aaa; margin-top: -1rem;">Gera um .zip com certificados para <strong>todos</strong> os alunos aprovados neste curso.</p>
-            
-            {/* Usamos um form aqui para agrupar os inputs, mas o submit chama JS */}
-            <form onsubmit="window.AppHandlers.handleGenerateBulkCertificates(event, ${course.id})">
-                 <div class="profile-grid"> {/* Reutiliza grid */}
-                    <div class="form-group">
-                        <label for="bulkCompletionDate">Data de Conclusão (para todos)</label>
-                        <input type="date" id="bulkCompletionDate" name="completionDate" value="${today}" required>
-                    </div>
-                    <div class="form-group">
-                        <label for="bulkOverrideCarga">Carga Horária (Opcional)</label>
-                        <input type="text" id="bulkOverrideCarga" name="overrideCargaHoraria" placeholder="Padrão: ${course.carga_horaria || 'N/A'}">
-                    </div>
-                </div>
-                <button type="submit" class="action-button">
-                    Gerar e Baixar ZIP de Certificados
-                </button>
-            </form>
-        </div>
+        
     `;
 }

@@ -85,3 +85,18 @@ export function applyCardOrder(appRoot, appState) {
         }
     }
 }
+
+// *** FUNÇÃO ADICIONADA E EXPORTADA ***
+export function getMonthName(monthString) { // monthString no formato 'YYYY-MM'
+    if (!monthString) return '';
+    try {
+        const [year, month] = monthString.split('-');
+        // Corrige o bug de off-by-one do mês e garante UTC
+        const date = new Date(Date.UTC(year, month - 1, 1)); 
+        if (isNaN(date.getTime())) return 'Mês inválido';
+        return date.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric', timeZone: 'UTC' });
+    } catch (e) {
+        console.error("Erro ao formatar nome do mês:", e);
+        return 'Erro de mês';
+    }
+}

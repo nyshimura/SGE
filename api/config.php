@@ -28,9 +28,9 @@ if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') {
 
 // --- CREDENCIAIS DO BANCO DE DADOS ---
 define('DB_HOST', 'localhost');
-define('DB_USER', 'SEU_USUARIO_DO_BANCO');
-define('DB_PASS', 'SUA_SENHA_DO_BANCO');
-define('DB_NAME', 'SEU_NOME_DO_BANCO');
+define('DB_USER', 'u821635548_base');
+define('DB_PASS', '100Senha!S');
+define('DB_NAME', 'u821635548_sistema');
 
 // --- CONEXÃO COM O BANCO DE DADOS (USANDO PDO) ---
 $conn = null;

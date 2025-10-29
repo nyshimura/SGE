@@ -21,7 +21,7 @@ export async function renderCertificateTemplateView() {
 
     const placeholders = [
         { group: 'Aluno', items: ['{{aluno_nome_completo}}', '{{aluno_cpf}}', '{{aluno_rg}}'] },
-        { group: 'Curso', items: ['{{curso_nome}}', '{{carga_horaria}}', '{{professor_nome}}'] },
+        { group: 'Curso', items: ['{{curso_nome}}', '{{curso_carga_horaria}}', '{{professor_nome}}'] },
         { group: 'Data/Local', items: ['{{data_conclusao}}', '{{data_emissao_extenso}}', '{{escola_cidade}}'] },
         { group: 'Escola', items: ['{{escola_nome}}', '{{escola_cnpj}}'] },
         { group: 'Verificação', items: ['{{codigo_verificacao}}'] }

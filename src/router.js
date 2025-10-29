@@ -75,22 +75,20 @@ export async function render() {
 
     // 4. Gerencia Modais
     let shouldClearAppRoot = true;
-    const existingPixModal = document.querySelector('.modal-overlay.pix-modal'); // <<< MODIFICADO: Classe específica
-    const existingEnrollmentModal = document.querySelector('.modal-overlay.enrollment-modal'); // <<< MODIFICADO: Classe específica
+    const existingPixModal = document.querySelector('.modal-overlay.pix-modal');
+    const existingEnrollmentModal = document.querySelector('.modal-overlay.enrollment-modal');
     if (!appState.pixModal.isOpen && existingPixModal) existingPixModal.remove();
     if (!appState.enrollmentModalState.isOpen && existingEnrollmentModal) existingEnrollmentModal.remove();
     if (appState.pixModal.isOpen) {
         if (!existingPixModal) document.body.appendChild(renderPixPaymentModal(appState));
         shouldClearAppRoot = false;
     }
-    // <<< MODIFICADO: Passa isReenrollment para renderEnrollmentModal >>>
     if (appState.enrollmentModalState.isOpen && appState.enrollmentModalState.data) {
         if (!existingEnrollmentModal) document.body.appendChild(renderEnrollmentModal(appState.enrollmentModalState.data, appState.enrollmentModalState.isReenrollment));
         shouldClearAppRoot = false;
     }
 
     // 5. Limpa/Loading
-    // <<< MODIFICADO: Lógica de loading aprimorada >>>
     if (shouldClearAppRoot) {
         const authViews = ['login', 'register', 'forgotPasswordRequest', 'resetPassword'];
         const isAuthView = authViews.includes(appState.currentView);
@@ -117,7 +115,6 @@ export async function render() {
     // ---- Roteamento LOGADOS ----
 
     // Lógica Rematrícula Obrigatória
-    // <<< MODIFICADO: Lógica de verificação de data aprimorada >>>
     if (currentUser.role === 'student' && appState.currentView === 'dashboard' && !appState.enrollmentModalState.isOpen && !appState.pixModal.isOpen) {
         let needsReenrollment = false; let reenrollmentCourseId = null; const now = new Date(); const enrollments = appState.enrollments || [];
         for (const enrollment of enrollments) {
@@ -127,7 +124,6 @@ export async function render() {
                      if (isNaN(acceptedDate.getTime())) continue;
                      const checkDate = new Date(acceptedDate.getTime());
                      checkDate.setFullYear(checkDate.getFullYear() + 1); // Adiciona 1 ano
-                     //checkDate.setMonth(checkDate.getMonth() + 12); // Alternativa para adicionar 12 meses
                      if (now >= checkDate) {
                          needsReenrollment = true;
                          reenrollmentCourseId = enrollment.courseId;
@@ -140,7 +136,7 @@ export async function render() {
             }
         }
         if (needsReenrollment && reenrollmentCourseId) {
-            console.log(`Necessária rematrícula para o curso ID: ${reenrollmentCourseId}`);
+            console.log(`Necessária rematrícula para o curso ID: ${reenrollmentCourseId}`); // Pode manter este log se útil
             if (shouldClearAppRoot) appRoot.innerHTML = '<div class="loading-placeholder">Aguarde, preparando renovação...</div>';
             setTimeout(() => window.AppHandlers.handleInitiateEnrollment(reenrollmentCourseId, true), 50);
             return;
@@ -179,7 +175,6 @@ export async function render() {
 async function getActiveViewHtml() {
     const { currentUser, currentView, financialState, viewingCourseId, viewingUserId, documentTemplatesState, adminView } = appState;
 
-     // <<< MODIFICADO: Estrutura de roteamento aprimorada >>>
     if (!currentUser) { throw new Error("Usuário não está logado."); }
 
     try {
@@ -198,7 +193,6 @@ async function getActiveViewHtml() {
                     return '<div class="loading-placeholder">Curso não encontrado. Redirecionando...</div>';
                 }
                 if (adminView === 'editCourse') return await renderEditCourseView(course);
-                if (adminView === 'attendance') return await renderAttendanceManagementView(viewingCourseId);
             }
         }
 
@@ -209,21 +203,29 @@ async function getActiveViewHtml() {
             if (financialState.isDashboardVisible) return await renderFinancialDashboardView();
         }
 
-        // ---- Prioridade para viewing IDs (detalhes de usuário, curso, escola) ----
+        // ---- Prioridade para viewing IDs (detalhes de usuário, escola) ----
         if (viewingUserId === -1 && (currentUser.role === 'admin' || currentUser.role === 'superadmin')) return await renderSchoolProfileView();
         if (viewingUserId !== null) return await renderProfileView(viewingUserId); // Permitir ver próprio perfil
-        if (viewingCourseId !== null && adminView !== 'editCourse' && adminView !== 'attendance') { // Detalhes do curso
+
+        // ---- Prioridade para VIEWS ESPECÍFICAS baseadas em currentView ----
+        if (currentView === 'attendance' && viewingCourseId !== null && (currentUser.role === 'teacher' || currentUser.role === 'admin' || currentUser.role === 'superadmin')) {
+            return await renderAttendanceManagementView(viewingCourseId);
+        }
+
+        if (currentView === 'myCertificates' && currentUser.role === 'student') {
+            return await renderMyCertificatesView();
+        }
+
+        // ---- Detalhes do CURSO (se viewingCourseId está definido E NÃO É attendance ou editCourse) ----
+        if (viewingCourseId !== null && currentView !== 'attendance' && adminView !== 'editCourse') {
             const course = appState.courses.find(c => c.id === viewingCourseId);
             if (!course) {
                 setTimeout(window.AppHandlers.handleNavigateBackToDashboard, 50);
                 return '<div class="loading-placeholder">Curso não encontrado. Redirecionando...</div>';
             }
-            return await renderCourseDetailsView(course);
-        }
-
-        // ---- Views principais baseadas em currentView ----
-        if (currentView === 'myCertificates' && currentUser.role === 'student') { // <<< ADICIONADO: Rota para certificados do aluno
-            return await renderMyCertificatesView();
+            if (currentView === 'courseDetails' || adminView === null) {
+                 return await renderCourseDetailsView(course);
+            }
         }
 
         // Default: Dashboard (se nenhuma outra condição específica for atendida)
@@ -233,7 +235,7 @@ async function getActiveViewHtml() {
         }
 
         // ---- Fallback final ----
-        console.warn(`View '${currentView}' não mapeada ou não permitida. Redirecionando para dashboard.`);
+        console.warn(`View '${currentView || adminView}' não mapeada ou não permitida. Redirecionando para dashboard.`); // Pode manter este aviso
         appState.currentView = 'dashboard';
         return await renderDashboard(appRoot);
 

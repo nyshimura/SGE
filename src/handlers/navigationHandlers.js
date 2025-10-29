@@ -3,7 +3,6 @@ import { appState } from '../state.js';
 import { render } from '../router.js';
 
 // --- FUNÇÃO AUXILIAR PARA RESETAR VIEWS ---
-// <<<< ADICIONADO/MODIFICADO: Centraliza o reset de estados específicos >>>>
 function resetSubViews() {
     appState.viewingCourseId = null;
     appState.viewingUserId = null;
@@ -27,129 +26,99 @@ function resetSubViews() {
 }
 
 
-// --- FUNÇÃO DE NAVEGAÇÃO GENÉRICA ---
-// <<<< MODIFICADO: Simplificado e usa resetSubViews >>>>
-export function navigateTo(view) {
-    resetSubViews(); // Reseta os estados antes de definir a nova view principal
-    appState.currentView = view; // Define a view principal
-
-    // Lógica específica para hash (se necessário, mas geralmente não precisa mais aqui)
-    // if (view === 'forgotPasswordRequest') {
-    //     window.location.hash = 'forgotPasswordRequest';
-    // }
-
-    render(); // Chama a renderização
+// --- FUNÇÕES DE NAVEGAÇÃO PRINCIPAIS ---
+export function navigateTo(viewName) {
+    resetSubViews(); // Reseta estados antes de definir a nova view principal
+    appState.currentView = viewName;
+    render();
 }
 
-// --- FUNÇÕES ESPECÍFICAS DE NAVEGAÇÃO (handleNavigateTo...) ---
-
-// <<<< MODIFICADO: Usa resetSubViews >>>>
 export function handleNavigateBackToDashboard() {
-    resetSubViews(); // Limpa tudo
+    resetSubViews(); // Limpa todos os sub-estados
     appState.currentView = 'dashboard'; // Define a view principal
     render();
 }
 
-// <<<< MODIFICADO: Usa resetSubViews >>>>
 export function handleNavigateToAttendance(courseId) {
-    resetSubViews();
-    appState.viewingCourseId = courseId;
-    appState.adminView = 'attendance';
-    appState.attendanceState = appState.attendanceState || {}; // Garante que exista
-    appState.attendanceState.selectedDate = new Date().toISOString().split('T')[0];
-    appState.currentView = 'adminDashboard'; // Ou a view base que contém as adminViews
-    render();
+    resetSubViews(); // Limpa outros estados primeiro
+    appState.viewingCourseId = courseId;    // Define o curso que estamos visualizando
+    appState.currentView = 'attendance'; // Define a VISÃO PRINCIPAL desejada
+    render();                         // Chama o roteador para atualizar a tela
 }
 
-// <<<< MODIFICADO: Usa resetSubViews >>>>
 export function handleNavigateToEditCourse(courseId) {
     resetSubViews();
     appState.viewingCourseId = courseId;
-    appState.adminView = 'editCourse';
-    appState.currentView = 'adminDashboard'; // Ou a view base
+    appState.adminView = 'editCourse'; // Define a sub-view de admin
+    appState.currentView = 'adminDashboard'; // Ou a view base de admin
     render();
 }
 
-// <<<< MODIFICADO: Usa resetSubViews >>>>
 export function handleNavigateToCreateCourse() {
     resetSubViews();
     appState.adminView = 'createCourse';
-    // appState.viewingCourseId = null; // Já feito por resetSubViews
-    // appState.viewingUserId = null;  // Já feito por resetSubViews
-    appState.currentView = 'adminDashboard'; // Ou a view base
+    appState.currentView = 'adminDashboard'; // Ou a view base de admin
     render();
 }
 
-// <<<< MODIFICADO: Usa resetSubViews >>>>
 export function handleNavigateToCourseDetails(courseId) {
     resetSubViews();
     appState.viewingCourseId = courseId;
-    // appState.adminView = 'details'; // Não precisa definir adminView se for a view padrão do ID
-    // appState.viewingUserId = null; // Já feito
-    appState.currentView = 'courseDetails'; // Ou apenas 'dashboard' e deixar o router decidir
+    appState.currentView = 'courseDetails'; // Define a view principal como detalhes do curso
     render();
 }
 
-// <<<< MODIFICADO: Usa resetSubViews >>>>
 export function handleNavigateToUserManagement() {
     resetSubViews();
     appState.adminView = 'userManagement';
-    appState.currentView = 'adminDashboard'; // Ou a view base
+    appState.currentView = 'adminDashboard'; // Ou a view base de admin
     render();
 }
 
-// <<<< MODIFICADO: Usa resetSubViews >>>>
 export function handleNavigateToSystemSettings() {
     resetSubViews();
     appState.adminView = 'systemSettings';
-    appState.currentView = 'adminDashboard'; // Ou a view base
+    appState.currentView = 'adminDashboard'; // Ou a view base de admin
     render();
 }
 
-// <<<< MODIFICADO: Usa resetSubViews >>>>
 export function handleNavigateToDocumentTemplates() {
     resetSubViews();
     appState.adminView = 'documentTemplates';
-    appState.documentTemplatesState = appState.documentTemplatesState || {};
-    appState.documentTemplatesState.isVisible = true; // Se ainda usar essa flag
-    appState.currentView = 'adminDashboard'; // Ou a view base
+    appState.currentView = 'adminDashboard'; // Ou a view base de admin
     render();
 }
 
-// <<<< MODIFICADO: Usa resetSubViews >>>>
 export function handleNavigateToCertificateTemplate() {
     resetSubViews();
     appState.adminView = 'certificateTemplate';
-    appState.currentView = 'adminDashboard'; // Ou a view base
+    appState.currentView = 'adminDashboard'; // Ou a view base de admin
     render();
 }
 
-// <<<< MODIFICADO: Usa resetSubViews >>>>
 export function handleNavigateToProfile(userId) {
     resetSubViews();
     appState.viewingUserId = userId;
-    // appState.adminView = 'dashboard'; // adminView é resetado
-    appState.currentView = 'profile'; // Ou deixar o router decidir baseado em viewingUserId
+    appState.currentView = 'profile'; // Define a view principal como perfil
     render();
 }
 
-// <<<< MODIFICADO: Usa resetSubViews >>>>
 export function handleNavigateToSchoolProfile() {
     resetSubViews();
-    appState.viewingUserId = -1; // Flag especial
-    appState.currentView = 'schoolProfile'; // Define explicitamente
+    appState.viewingUserId = -1; // Sinaliza perfil da escola
+    appState.currentView = 'schoolProfile'; // Define a view principal
     render();
 }
 
-// <<<< MODIFICADO: Usa resetSubViews >>>>
+
+// --- FUNÇÕES DE NAVEGAÇÃO FINANCEIRA ---
 export function handleNavigateToFinancialDashboard() {
     resetSubViews();
     appState.financialState.isDashboardVisible = true;
-    appState.currentView = 'adminDashboard'; // Ou a view base
+    appState.currentView = 'adminDashboard'; // Ou a view base de admin financeiro
     render();
 }
 
-// <<<< MODIFICADO: Usa resetSubViews >>>>
 export function handleNavigateToFinancialControlPanel() {
     resetSubViews();
     appState.financialState.isControlPanelVisible = true;
@@ -157,7 +126,6 @@ export function handleNavigateToFinancialControlPanel() {
     render();
 }
 
-// <<<< MODIFICADO: Usa resetSubViews >>>>
 export function handleNavigateToDefaultersReport() {
     resetSubViews();
     appState.financialState.isDefaultersReportVisible = true;
@@ -166,7 +134,6 @@ export function handleNavigateToDefaultersReport() {
 }
 
 // --- NOVA FUNÇÃO PARA MEUS CERTIFICADOS ---
-// <<<< ADICIONADO: Nova função >>>>
 export function handleNavigateToMyCertificates() {
     resetSubViews(); // Limpa outros estados
     appState.currentView = 'myCertificates'; // Define a view alvo
@@ -174,7 +141,7 @@ export function handleNavigateToMyCertificates() {
 }
 // ------------------------------------
 
-// <<< ADICIONADO: Exporta todas as funções em um objeto para facilitar o registro >>>
+// Exporta todas as funções em um objeto para facilitar o registro
 export const navigationHandlers = {
     navigateTo,
     handleNavigateBackToDashboard,
@@ -191,5 +158,5 @@ export const navigationHandlers = {
     handleNavigateToFinancialDashboard,
     handleNavigateToFinancialControlPanel,
     handleNavigateToDefaultersReport,
-    handleNavigateToMyCertificates // <<< Adicionada aqui também
+    handleNavigateToMyCertificates
 };
