@@ -92,3 +92,9 @@ Após a instalação, você pode acessar o sistema com as credenciais padrão:
 
 
 ---
+
+## 📜 Licença
+
+Este projeto está licenciado sob a Licença MIT. Veja o arquivo `LICENSE` para mais detalhes.
+
+---
