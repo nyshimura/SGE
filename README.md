@@ -26,6 +26,7 @@ O sistema é dividido em módulos principais:
     * [X] Matrícula de alunos em cursos
     * [X] Gestão de contratos e termos de imagem
     * [X] Criação de certificados de conclusão
+    * [X] Verificação de Certificado por Hash
 * **📚 Gestão de Cursos:**
     * [X] Criação e gerenciamento de cursos
     * [X] Definição de turmas e horários
@@ -77,6 +78,7 @@ Siga os passos abaixo para configurar o ambiente de desenvolvimento local (basea
 5.  **Executar:**
     * Acesse `http://localhost/sge` em seu navegador.
 
+
 ---
 
 ## 🏃 Como Usar
@@ -95,7 +97,8 @@ Após a instalação, você pode acessar o sistema com as credenciais padrão:
   * **Personalize suas mensagens de matricula aprovada e redefinição de senha**
   * **Personalize seus Contratos e termos de imagem**
 
-
+**Verificar Certificado**
+     Acesse `http://localhost/sge/verificar` em seu navegador.
 
 ---
 
