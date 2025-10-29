@@ -89,6 +89,12 @@ Após a instalação, você pode acessar o sistema com as credenciais padrão:
     * **Usuário:** `admin@admin`
     * **Senha:** `admin`
 
+* **Configurações:**
+  * **Configure sua api do gemini**
+  * **Configure seus dados de smtp**
+  * **Personalize suas mensagens de matricula aprovada e redefinição de senha**
+  * **Personalize seus Contratos e termos de imagem**
+
 
 
 ---
