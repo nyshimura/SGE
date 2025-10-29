@@ -1,280 +1,346 @@
 <?php
-// Inclui o helper de e-mail no início do arquivo, se ainda não estiver incluído
-require_once __DIR__ . '/../helpers/email_helper.php';
+/**
+ * handlers/auth_handlers.php
+ * Funções para lidar com autenticação, registro e gerenciamento de senhas.
+ */
 
-function handle_login($conn, $data) {
-    $email = isset($data['email']) ? trim($data['email']) : null; // Adiciona trim()
-    $password = isset($data['password']) ? $data['password'] : null;
-    if (!$email || !$password) { send_response(false, ['message' => 'Email e senha são obrigatórios.'], 400); return; } // Adiciona return
+// Garante que o config.php (que pode definir send_response ou outras funções)
+// já foi incluído pelo index.php. Se não, inclua aqui.
+// require_once __DIR__ . '/../config.php'; // Ajuste o caminho se necessário
+
+// --- FUNÇÕES DE AUTENTICAÇÃO ---
+
+/**
+ * Lida com o login do usuário.
+ */
+function handle_login($conn, $params) {
+    if (!isset($params['email']) || !isset($params['password'])) {
+        send_response(false, ['message' => 'E-mail e senha são obrigatórios.'], 400);
+    }
+
+    $email = trim($params['email']);
+    $password = $params['password'];
 
     try {
-        // Corrigido: Seleciona password_hash em vez de password
-        $stmt = $conn->prepare("SELECT id, firstName, lastName, email, role, profilePicture, password_hash FROM users WHERE email = ?");
-        $stmt->execute([$email]);
-        $user = $stmt->fetch(PDO::FETCH_ASSOC); // Usa FETCH_ASSOC
+        $sql = "SELECT id, password_hash, role, firstName FROM users WHERE email = :email";
+        $stmt = $conn->prepare($sql);
+        $stmt->bindParam(':email', $email);
+        $stmt->execute();
 
-        // Corrigido: Verifica contra password_hash
+        $user = $stmt->fetch(PDO::FETCH_ASSOC);
+
         if ($user && password_verify($password, $user['password_hash'])) {
-            // Senha correta, iniciar/regenerar sessão
+            // Login bem-sucedido
             if (session_status() == PHP_SESSION_NONE) {
-                session_start();
+                session_start(); // Inicia a sessão se ainda não estiver iniciada
             }
-            session_regenerate_id(true); // Regenera ID da sessão por segurança
-
             $_SESSION['user_id'] = $user['id'];
-            $_SESSION['user_role'] = $user['role']; // Certifique-se que 'role' é a coluna correta
+            $_SESSION['user_role'] = $user['role'];
+            $_SESSION['user_firstName'] = $user['firstName']; // Opcional: guardar nome para exibição
 
-            // <<< INÍCIO ALTERAÇÃO: Adicionar Log de Login >>>
-            error_log("[AUTH_HANDLER] Login bem-sucedido. Sessão iniciada/regenerada. ID da Sessão: " . session_id() . ", User ID na Sessão: " . $_SESSION['user_id'] . ", User Role na Sessão: " . $_SESSION['user_role']);
-            // <<< FIM ALTERAÇÃO >>>
+            error_log("[AUTH_HANDLERS] Login bem-sucedido para usuário ID: " . $user['id'] . ". Sessão iniciada: " . session_id());
 
-            // Prepara dados do usuário para retornar (sem a senha!)
-            unset($user['password_hash']);
-            send_response(true, ['user' => $user, 'message' => 'Login bem-sucedido.']);
-
+            send_response(true, [
+                'message' => 'Login bem-sucedido!',
+                'user' => [ // Enviar dados básicos do usuário para o frontend
+                    'id' => $user['id'],
+                    'role' => $user['role'],
+                    'firstName' => $user['firstName']
+                 ]
+            ]);
         } else {
-            // Email não encontrado ou Senha incorreta
-            error_log("[AUTH_HANDLER] Tentativa de login falhou (email não encontrado ou senha incorreta) para o email: " . $email);
-            send_response(false, ['message' => 'E-mail ou senha inválidos.'], 401);
+            // Credenciais inválidas
+            error_log("[AUTH_HANDLERS] Tentativa de login falhou para o e-mail: " . $email);
+            send_response(false, ['message' => 'E-mail ou senha inválidos.'], 401); // 401 Unauthorized
         }
-
     } catch (PDOException $e) {
         error_log("Erro PDO handle_login: " . $e->getMessage());
-        send_response(false, ['message' => 'Erro ao tentar fazer login.'], 500);
-    } catch (Exception $e) {
-        error_log("Erro Geral handle_login: " . $e->getMessage());
-        send_response(false, ['message' => 'Erro interno ao processar login.'], 500);
+        send_response(false, ['message' => 'Erro no banco de dados durante o login.'], 500);
     }
 }
 
+/**
+ * Lida com o registro de um novo usuário (geralmente como 'student').
+ */
+function handle_register($conn, $params) {
+    // Validação básica dos campos necessários
+    if (!isset($params['firstName']) || !isset($params['email']) || !isset($params['password']) || !isset($params['confirmPassword'])) {
+        send_response(false, ['message' => 'Nome, e-mail e senhas são obrigatórios.'], 400);
+    }
 
-function handle_register($conn, $data) {
-    // Extrai e valida os dados de entrada
-    $firstName = isset($data['firstName']) ? trim($data['firstName']) : '';
-    $lastName = isset($data['lastName']) ? trim($data['lastName']) : '';
-    $email = isset($data['email']) ? trim($data['email']) : '';
-    $password = isset($data['password']) ? $data['password'] : '';
-    $role = isset($data['role']) ? $data['role'] : 'student'; // Papel padrão 'student'
+    $firstName = trim($params['firstName']);
+    $email = trim($params['email']);
+    $password = $params['password'];
+    $confirmPassword = $params['confirmPassword'];
+    $role = $params['role'] ?? 'student'; // Define 'student' como padrão se não fornecido
 
-    // Validações básicas
-    if (empty($firstName) || empty($lastName) || empty($email) || empty($password)) {
-        send_response(false, ['message' => 'Todos os campos são obrigatórios (Nome, Sobrenome, Email, Senha).'], 400);
-        return;
+    // Validações adicionais
+    if (empty($firstName) || empty($email) || empty($password)) {
+        send_response(false, ['message' => 'Campos obrigatórios não podem estar vazios.'], 400);
     }
     if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
         send_response(false, ['message' => 'Formato de e-mail inválido.'], 400);
-        return;
     }
-    // Adicionar validação de força da senha se necessário
+    if (strlen($password) < 6) {
+        send_response(false, ['message' => 'A senha deve ter pelo menos 6 caracteres.'], 400);
+    }
+    if ($password !== $confirmPassword) {
+        send_response(false, ['message' => 'As senhas não coincidem.'], 400);
+    }
 
-    // Verifica se o email já existe
+    // Verifica se o e-mail já existe
     try {
-        $stmtCheck = $conn->prepare("SELECT COUNT(*) FROM users WHERE email = ?");
-        $stmtCheck->execute([$email]);
-        if ($stmtCheck->fetchColumn() > 0) {
+        $sqlCheck = "SELECT id FROM users WHERE email = :email";
+        $stmtCheck = $conn->prepare($sqlCheck);
+        $stmtCheck->bindParam(':email', $email);
+        $stmtCheck->execute();
+        if ($stmtCheck->fetch()) {
             send_response(false, ['message' => 'Este e-mail já está cadastrado.'], 409); // 409 Conflict
-            return;
         }
 
-        // Gera o hash da senha
-        $password_hash = password_hash($password, PASSWORD_DEFAULT);
+        // Hash da senha
+        $passwordHash = password_hash($password, PASSWORD_DEFAULT);
 
         // Insere o novo usuário
-        $stmtInsert = $conn->prepare("INSERT INTO users (firstName, lastName, email, password_hash, role, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, NOW(), NOW())");
-        $success = $stmtInsert->execute([$firstName, $lastName, $email, $password_hash, $role]);
+        $sqlInsert = "INSERT INTO users (firstName, email, password_hash, role, created_at) VALUES (:firstName, :email, :passwordHash, :role, NOW())";
+        $stmtInsert = $conn->prepare($sqlInsert);
+        $stmtInsert->bindParam(':firstName', $firstName);
+        $stmtInsert->bindParam(':email', $email);
+        $stmtInsert->bindParam(':passwordHash', $passwordHash);
+        $stmtInsert->bindParam(':role', $role); // Usando a role definida
 
-        if ($success) {
-            // Obter ID do usuário recém-criado para possível retorno ou log
-             $userId = $conn->lastInsertId();
-            error_log("[AUTH_HANDLER] Novo usuário registrado com sucesso. ID: $userId, Email: $email, Role: $role");
-            send_response(true, ['message' => 'Usuário registrado com sucesso!', 'userId' => $userId]);
+        if ($stmtInsert->execute()) {
+            send_response(true, ['message' => 'Usuário registrado com sucesso!']);
         } else {
-             error_log("[AUTH_HANDLER] Falha ao inserir novo usuário no banco de dados. Email: $email");
+            error_log("Erro PDO handle_register (insert): " . implode(":", $stmtInsert->errorInfo()));
             send_response(false, ['message' => 'Erro ao registrar usuário.'], 500);
         }
 
     } catch (PDOException $e) {
         error_log("Erro PDO handle_register: " . $e->getMessage());
         send_response(false, ['message' => 'Erro no banco de dados durante o registro.'], 500);
-    } catch (Exception $e) {
-        error_log("Erro Geral handle_register: " . $e->getMessage());
-        send_response(false, ['message' => 'Erro interno ao processar registro.'], 500);
     }
 }
 
+/**
+ * Lida com a alteração de senha pelo usuário logado.
+ */
+function handle_change_password($conn, $params) {
+    if (session_status() == PHP_SESSION_NONE) {
+        session_start();
+    }
 
-function handle_change_password($conn, $data) {
-    // Assume que o user ID vem da sessão
+    // Verifica se o usuário está logado
     if (!isset($_SESSION['user_id'])) {
         send_response(false, ['message' => 'Usuário não autenticado.'], 401);
-        return;
     }
     $userId = $_SESSION['user_id'];
 
-    $currentPassword = isset($data['currentPassword']) ? $data['currentPassword'] : '';
-    $newPassword = isset($data['newPassword']) ? $data['newPassword'] : '';
-    $confirmPassword = isset($data['confirmPassword']) ? $data['confirmPassword'] : '';
-
-    // Validações
-    if (empty($currentPassword) || empty($newPassword) || empty($confirmPassword)) {
+    // Validação dos parâmetros recebidos do frontend (via JSON body)
+    if (!isset($params['currentPassword']) || !isset($params['newPassword']) || !isset($params['confirmPassword'])) {
         send_response(false, ['message' => 'Todos os campos de senha são obrigatórios.'], 400);
-        return;
+    }
+
+    $currentPassword = $params['currentPassword'];
+    $newPassword = $params['newPassword'];
+    $confirmPassword = $params['confirmPassword']; // Mesmo que a validação seja no front, pegamos aqui para consistência ou futuras checagens no backend
+
+    // Validações adicionais
+    if (empty($currentPassword) || empty($newPassword) || empty($confirmPassword)) {
+         send_response(false, ['message' => 'Campos de senha não podem estar vazios.'], 400);
+    }
+    if (strlen($newPassword) < 6) {
+        send_response(false, ['message' => 'A nova senha deve ter pelo menos 6 caracteres.'], 400);
     }
     if ($newPassword !== $confirmPassword) {
-        send_response(false, ['message' => 'A nova senha e a confirmação não coincidem.'], 400);
-        return;
+        // Esta validação idealmente já foi feita no frontend, mas é bom ter aqui também
+        send_response(false, ['message' => 'As novas senhas não coincidem.'], 400);
     }
-    // Adicionar validação de força da nova senha se necessário
 
     try {
-        // Verifica a senha atual
-        $stmtCheck = $conn->prepare("SELECT password_hash FROM users WHERE id = ?");
-        $stmtCheck->execute([$userId]);
-        $user = $stmtCheck->fetch(PDO::FETCH_ASSOC);
+        // 1. Buscar o hash da senha atual do usuário no banco
+        $sqlSelect = "SELECT password_hash FROM users WHERE id = :userId";
+        $stmtSelect = $conn->prepare($sqlSelect);
+        $stmtSelect->bindParam(':userId', $userId, PDO::PARAM_INT);
+        $stmtSelect->execute();
+        $user = $stmtSelect->fetch(PDO::FETCH_ASSOC);
 
-        if (!$user || !password_verify($currentPassword, $user['password_hash'])) {
-            send_response(false, ['message' => 'Senha atual incorreta.'], 400);
-            return;
+        if (!$user) {
+            send_response(false, ['message' => 'Usuário não encontrado.'], 404);
         }
 
-        // Gera o hash da nova senha
-        $new_password_hash = password_hash($newPassword, PASSWORD_DEFAULT);
+        // 2. Verificar se a senha atual fornecida corresponde ao hash armazenado
+        if (!password_verify($currentPassword, $user['password_hash'])) {
+            send_response(false, ['message' => 'Senha atual incorreta.'], 401); // 401 Unauthorized (ou 403 Forbidden)
+        }
 
-        // Atualiza a senha no banco
-        $stmtUpdate = $conn->prepare("UPDATE users SET password_hash = ?, updatedAt = NOW() WHERE id = ?");
-        $success = $stmtUpdate->execute([$new_password_hash, $userId]);
+        // 3. Gerar o hash da nova senha
+        $newPasswordHash = password_hash($newPassword, PASSWORD_DEFAULT);
 
-        if ($success) {
-            error_log("[AUTH_HANDLER] Senha alterada com sucesso para o usuário ID: $userId");
+        // 4. Atualizar o hash da senha no banco de dados
+        // <<< CORREÇÃO APLICADA AQUI: REMOVIDO updatedAt >>>
+        $sqlUpdate = "UPDATE users SET password_hash = :newPasswordHash WHERE id = :userId";
+        $stmtUpdate = $conn->prepare($sqlUpdate);
+        $stmtUpdate->bindParam(':newPasswordHash', $newPasswordHash);
+        $stmtUpdate->bindParam(':userId', $userId, PDO::PARAM_INT);
+
+        if ($stmtUpdate->execute()) {
             send_response(true, ['message' => 'Senha alterada com sucesso!']);
         } else {
-             error_log("[AUTH_HANDLER] Falha ao atualizar a senha no banco para o usuário ID: $userId");
-            send_response(false, ['message' => 'Erro ao alterar a senha.'], 500);
+            // Log do erro específico do PDO
+            error_log("Erro PDO handle_change_password (update): " . implode(":", $stmtUpdate->errorInfo()));
+            send_response(false, ['message' => 'Erro no banco de dados ao alterar a senha.'], 500);
         }
 
     } catch (PDOException $e) {
         error_log("Erro PDO handle_change_password: " . $e->getMessage());
-        send_response(false, ['message' => 'Erro no banco de dados ao alterar a senha.'], 500);
-    } catch (Exception $e) {
-        error_log("Erro Geral handle_change_password: " . $e->getMessage());
-        send_response(false, ['message' => 'Erro interno ao alterar a senha.'], 500);
+        send_response(false, ['message' => 'Erro no banco de dados ao processar a alteração de senha.'], 500);
     }
 }
 
 
-function handle_request_password_reset($conn, $data) {
-    $email = isset($data['email']) ? trim($data['email']) : null;
-    if (empty($email) || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
-        send_response(false, ['message' => 'E-mail inválido ou ausente.'], 400);
-        return;
+/**
+ * Lida com a solicitação de redefinição de senha (envia e-mail com token).
+ */
+function handle_request_password_reset($conn, $params) {
+    // Implementação pendente:
+    // 1. Validar e-mail recebido ($params['email'])
+    // 2. Procurar usuário pelo e-mail
+    // 3. Se encontrado:
+    //    a. Gerar um token único e seguro (ex: bin2hex(random_bytes(32)))
+    //    b. Definir um tempo de expiração (ex: 1 hora a partir de agora)
+    //    c. Salvar o token e a expiração na tabela 'users' para aquele usuário
+    //    d. Montar o link de redefinição (ex: $siteUrl . '/reset-password.html?token=' . $token)
+    //    e. Enviar e-mail para o usuário contendo o link (usar PHPMailer ou mail())
+    // 4. Se não encontrado ou se houver erro, enviar resposta genérica (por segurança, não confirme se o e-mail existe ou não).
+    // send_response(true, ['message' => 'Se o e-mail estiver cadastrado, você receberá um link para redefinir sua senha.']);
+
+    // Exemplo simplificado (APENAS PARA ILUSTRAÇÃO, REQUER IMPLEMENTAÇÃO REAL)
+    if (!isset($params['email']) || !filter_var($params['email'], FILTER_VALIDATE_EMAIL)) {
+        send_response(false, ['message' => 'E-mail inválido.'], 400);
     }
+     $email = $params['email'];
 
-    try {
-        // Verifica se o usuário existe
-        $stmt = $conn->prepare("SELECT id, firstName FROM users WHERE email = ?");
-        $stmt->execute([$email]);
-        $user = $stmt->fetch(PDO::FETCH_ASSOC);
+     require_once __DIR__ . '/../includes/email_functions.php'; // Precisa criar este arquivo
 
-        if ($user) {
-            // Gera um token único e seguro
-            $token = bin2hex(random_bytes(32));
-            $expires = new DateTime('now', new DateTimeZone('America/Sao_Paulo')); // Usar fuso horário consistente
-            $expires->add(new DateInterval('PT1H')); // Token expira em 1 hora
-            $expiresTimestamp = $expires->format('Y-m-d H:i:s');
+     try {
+         $sql = "SELECT id FROM users WHERE email = :email";
+         $stmt = $conn->prepare($sql);
+         $stmt->bindParam(':email', $email);
+         $stmt->execute();
+         $user = $stmt->fetch(PDO::FETCH_ASSOC);
 
-            // Salva o token e a data de expiração no banco de dados
-            $stmtUpdate = $conn->prepare("UPDATE users SET reset_token = ?, reset_token_expires_at = ? WHERE id = ?");
-            $updateSuccess = $stmtUpdate->execute([$token, $expiresTimestamp, $user['id']]);
+         if ($user) {
+             $token = bin2hex(random_bytes(32));
+             $expiresAt = new DateTime('+1 hour');
+             $expiresAtFormatted = $expiresAt->format('Y-m-d H:i:s');
 
-            if ($updateSuccess) {
-                // Envia o e-mail de redefinição
-                 $resetLink = $data['baseUrl'] . '/#/reset-password?token=' . $token; // Assume que baseUrl vem do frontend
-                $subject = 'Redefinição de Senha - Seu Sistema SGE';
-                $body = "Olá {$user['firstName']},<br><br>Você solicitou a redefinição de sua senha. Clique no link abaixo para criar uma nova senha:<br><a href=\"{$resetLink}\">{$resetLink}</a><br><br>Este link expira em 1 hora.<br><br>Se você não solicitou isso, ignore este e-mail.";
+             $sqlUpdate = "UPDATE users SET reset_token = :token, reset_token_expires_at = :expires WHERE id = :id";
+             $stmtUpdate = $conn->prepare($sqlUpdate);
+             $stmtUpdate->bindParam(':token', $token);
+             $stmtUpdate->bindParam(':expires', $expiresAtFormatted);
+             $stmtUpdate->bindParam(':id', $user['id']);
 
-                $emailSent = send_reset_email($email, $user['firstName'], $subject, $body); // Usa a função do email_helper.php
+             if ($stmtUpdate->execute()) {
+                 $settings = get_system_settings($conn); // Busca URL do site das configurações
+                 $siteUrl = $settings['site_url'] ?? 'http://localhost/seu_projeto/';
+                 $resetLink = rtrim($siteUrl, '/') . '/reset.html?token=' . $token; // Ajuste o nome da página HTML
 
-                if ($emailSent) {
-                    send_response(true, ['message' => 'Instruções para redefinir sua senha foram enviadas para seu e-mail.']);
-                } else {
-                     error_log("[AUTH_HANDLER] Falha ao enviar email de redefinição para: $email");
-                     // Não informa o erro exato ao usuário por segurança, mas mantém o registro no log
-                    send_response(false, ['message' => 'Não foi possível enviar o e-mail de redefinição. Tente novamente mais tarde ou contate o suporte.'], 500);
-                }
-            } else {
-                 error_log("[AUTH_HANDLER] Falha ao salvar token de redefinição no BD para: $email");
-                send_response(false, ['message' => 'Erro ao processar a solicitação de redefinição.'], 500);
-            }
-        } else {
-            // Email não encontrado - Resposta genérica por segurança
-            send_response(true, ['message' => 'Se um e-mail correspondente for encontrado, instruções serão enviadas.']);
-        }
-    } catch (PDOException $e) {
-        error_log("Erro PDO handle_request_password_reset: " . $e->getMessage());
-        send_response(false, ['message' => 'Erro no banco de dados.'], 500);
-    } catch (Exception $e) { // Captura DateTime exceptions também
+                 // Tenta enviar o email
+                 if (send_password_reset_email($conn, $email, $user['id'], $resetLink)) {
+                     send_response(true, ['message' => 'Se o e-mail estiver cadastrado, um link de redefinição foi enviado. Verifique sua caixa de entrada e spam.']);
+                 } else {
+                    error_log("Falha ao enviar e-mail de redefinição para $email (ID: {$user['id']})");
+                    send_response(false, ['message' => 'Não foi possível enviar o e-mail de redefinição no momento.'], 500);
+                 }
+             } else {
+                 error_log("Erro PDO ao salvar token de reset para $email (ID: {$user['id']}): " . implode(":", $stmtUpdate->errorInfo()));
+                 send_response(false, ['message' => 'Erro ao processar solicitação.'], 500);
+             }
+         } else {
+             // Não encontrou o usuário, mas envia a mesma mensagem por segurança
+             send_response(true, ['message' => 'Se o e-mail estiver cadastrado, um link de redefinição foi enviado. Verifique sua caixa de entrada e spam.']);
+         }
+
+     } catch (PDOException $e) {
+         error_log("Erro PDO handle_request_password_reset: " . $e->getMessage());
+         send_response(false, ['message' => 'Erro no banco de dados.'], 500);
+     } catch (Exception $e) {
         error_log("Erro Geral handle_request_password_reset: " . $e->getMessage());
-        send_response(false, ['message' => 'Erro interno ao solicitar redefinição.'], 500);
-    }
+        send_response(false, ['message' => 'Erro ao processar a solicitação.'], 500);
+     }
 }
 
+/**
+ * Lida com a redefinição de senha usando o token recebido por e-mail.
+ */
+function handle_reset_password($conn, $params) {
+    // Implementação pendente:
+    // 1. Validar token, nova senha e confirmação ($params['token'], $params['newPassword'], $params['confirmPassword'])
+    // 2. Verificar se as senhas coincidem e têm o tamanho mínimo
+    // 3. Procurar o usuário pelo token NA TABELA 'users' E verificar se o token não expirou (comparar reset_token_expires_at com NOW())
+    // 4. Se o token for válido e não expirado:
+    //    a. Gerar o hash da nova senha
+    //    b. Atualizar a senha (password_hash) na tabela 'users'
+    //    c. Invalidar o token (definir reset_token e reset_token_expires_at como NULL)
+    //    d. Enviar resposta de sucesso
+    // 5. Se o token for inválido ou expirado, enviar erro apropriado.
 
-function handle_reset_password($conn, $data) {
-    $token = isset($data['token']) ? trim($data['token']) : null;
-    $newPassword = isset($data['newPassword']) ? $data['newPassword'] : null;
-    $confirmPassword = isset($data['confirmPassword']) ? $data['confirmPassword'] : null;
-
-    if (empty($token) || empty($newPassword) || empty($confirmPassword)) {
+    // Exemplo simplificado (APENAS PARA ILUSTRAÇÃO, REQUER IMPLEMENTAÇÃO REAL)
+    if (!isset($params['token']) || !isset($params['newPassword']) || !isset($params['confirmPassword'])) {
         send_response(false, ['message' => 'Token e senhas são obrigatórios.'], 400);
-        return;
+    }
+
+    $token = $params['token'];
+    $newPassword = $params['newPassword'];
+    $confirmPassword = $params['confirmPassword'];
+
+    if (strlen($newPassword) < 6) {
+        send_response(false, ['message' => 'A senha deve ter pelo menos 6 caracteres.'], 400);
     }
     if ($newPassword !== $confirmPassword) {
         send_response(false, ['message' => 'As senhas não coincidem.'], 400);
-        return;
     }
-    // Adicionar validação de força da senha se necessário
 
     try {
-        // Busca o usuário pelo token e verifica a expiração
-        $stmt = $conn->prepare("SELECT id, reset_token_expires_at FROM users WHERE reset_token = ?");
-        $stmt->execute([$token]);
-        $foundUser = $stmt->fetch(PDO::FETCH_ASSOC);
+        $sql = "SELECT id, reset_token_expires_at FROM users WHERE reset_token = :token";
+        $stmt = $conn->prepare($sql);
+        $stmt->bindParam(':token', $token);
+        $stmt->execute();
+        $user = $stmt->fetch(PDO::FETCH_ASSOC);
 
-        if (!$foundUser) {
-            send_response(false, ['message' => 'Link de redefinição inválido ou já utilizado.'], 400);
-            return;
-        }
+        if ($user) {
+            $now = new DateTime();
+            $expiresAt = new DateTime($user['reset_token_expires_at']);
 
-        // Verifica se o token expirou
-        $expires = new DateTime($foundUser['reset_token_expires_at'], new DateTimeZone('America/Sao_Paulo'));
-        $now = new DateTime('now', new DateTimeZone('America/Sao_Paulo'));
+            if ($now > $expiresAt) {
+                send_response(false, ['message' => 'Token de redefinição expirado.'], 400);
+            } else {
+                // Token válido, atualiza a senha
+                $newPasswordHash = password_hash($newPassword, PASSWORD_DEFAULT);
+                $sqlUpdate = "UPDATE users SET password_hash = :newPasswordHash, reset_token = NULL, reset_token_expires_at = NULL WHERE id = :id";
+                $stmtUpdate = $conn->prepare($sqlUpdate);
+                $stmtUpdate->bindParam(':newPasswordHash', $newPasswordHash);
+                $stmtUpdate->bindParam(':id', $user['id']);
 
-        if ($now > $expires) {
-            // Opcional: Limpar o token expirado do banco aqui
-            // $stmtClearExpired = $conn->prepare("UPDATE users SET reset_token = NULL, reset_token_expires_at = NULL WHERE id = ?");
-            // $stmtClearExpired->execute([$foundUser['id']]);
-            send_response(false, ['message' => 'Link de redefinição expirado.'], 400);
-            return;
-        }
-
-        // Token válido e não expirado, atualiza a senha
-        $new_password_hash = password_hash($newPassword, PASSWORD_DEFAULT);
-        $stmtUpdate = $conn->prepare("UPDATE users SET password_hash = ?, reset_token = NULL, reset_token_expires_at = NULL WHERE id = ?");
-        $success = $stmtUpdate->execute([$new_password_hash, $foundUser['id']]);
-
-        if ($success) {
-            send_response(true, ['message' => 'Senha redefinida com sucesso! Você já pode fazer login com a nova senha.']);
+                if ($stmtUpdate->execute()) {
+                    send_response(true, ['message' => 'Senha redefinida com sucesso! Você já pode fazer login com a nova senha.']);
+                } else {
+                    error_log("Erro PDO handle_reset_password (update): " . implode(":", $stmtUpdate->errorInfo()));
+                    send_response(false, ['message' => 'Erro ao atualizar a senha.'], 500);
+                }
+            }
         } else {
-             error_log("[AUTH_HANDLER] Falha ao atualizar a senha após reset para user ID: " . $foundUser['id']);
-            send_response(false, ['message' => 'Falha ao atualizar a senha.'], 500);
+            send_response(false, ['message' => 'Token de redefinição inválido.'], 400);
         }
 
     } catch (PDOException $e) {
         error_log("Erro PDO handle_reset_password: " . $e->getMessage());
-        send_response(false, ['message' => 'Erro ao redefinir a senha.'], 500);
-    } catch (\Exception $e) { // Captura DateTime exceptions
+        send_response(false, ['message' => 'Erro no banco de dados.'], 500);
+    } catch (Exception $e) { // Captura erros de DateTime
         error_log("Erro Geral handle_reset_password: " . $e->getMessage());
-        send_response(false, ['message' => 'Erro ao processar a redefinição de senha.'], 500);
+        send_response(false, ['message' => 'Erro ao processar a solicitação de redefinição.'], 500);
     }
 }
+
 ?>
