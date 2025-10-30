@@ -203,25 +203,14 @@ function handle_change_password($conn, $params) {
  * Lida com a solicitação de redefinição de senha (envia e-mail com token).
  */
 function handle_request_password_reset($conn, $params) {
-    // Implementação pendente:
-    // 1. Validar e-mail recebido ($params['email'])
-    // 2. Procurar usuário pelo e-mail
-    // 3. Se encontrado:
-    //    a. Gerar um token único e seguro (ex: bin2hex(random_bytes(32)))
-    //    b. Definir um tempo de expiração (ex: 1 hora a partir de agora)
-    //    c. Salvar o token e a expiração na tabela 'users' para aquele usuário
-    //    d. Montar o link de redefinição (ex: $siteUrl . '/reset-password.html?token=' . $token)
-    //    e. Enviar e-mail para o usuário contendo o link (usar PHPMailer ou mail())
-    // 4. Se não encontrado ou se houver erro, enviar resposta genérica (por segurança, não confirme se o e-mail existe ou não).
-    // send_response(true, ['message' => 'Se o e-mail estiver cadastrado, você receberá um link para redefinir sua senha.']);
-
-    // Exemplo simplificado (APENAS PARA ILUSTRAÇÃO, REQUER IMPLEMENTAÇÃO REAL)
+    
     if (!isset($params['email']) || !filter_var($params['email'], FILTER_VALIDATE_EMAIL)) {
         send_response(false, ['message' => 'E-mail inválido.'], 400);
     }
      $email = $params['email'];
 
-     require_once __DIR__ . '/../includes/email_functions.php'; // Precisa criar este arquivo
+     // O arquivo está em /helpers/email_helper.php
+     require_once __DIR__ . '/../helpers/email_helper.php'; 
 
      try {
          $sql = "SELECT id FROM users WHERE email = :email";
@@ -242,9 +231,19 @@ function handle_request_password_reset($conn, $params) {
              $stmtUpdate->bindParam(':id', $user['id']);
 
              if ($stmtUpdate->execute()) {
+                 
+                 // Esta função agora está disponível globalmente graças à correção no index.php
                  $settings = get_system_settings($conn); // Busca URL do site das configurações
+                 
                  $siteUrl = $settings['site_url'] ?? 'http://localhost/seu_projeto/';
-                 $resetLink = rtrim($siteUrl, '/') . '/reset.html?token=' . $token; // Ajuste o nome da página HTML
+                 
+                 // --- CORREÇÃO APLICADA AQUI ---
+                 // Troca /reset.html por uma rota de hash (SPA)
+                 // Assumindo que a rota do frontend seja #/reset-password
+                 $resetLink = rtrim($siteUrl, '/') . '/#resetPassword?token=' . $token; 
+                 // --- FIM DA CORREÇÃO ---
+
+
 
                  // Tenta enviar o email
                  if (send_password_reset_email($conn, $email, $user['id'], $resetLink)) {
@@ -275,18 +274,7 @@ function handle_request_password_reset($conn, $params) {
  * Lida com a redefinição de senha usando o token recebido por e-mail.
  */
 function handle_reset_password($conn, $params) {
-    // Implementação pendente:
-    // 1. Validar token, nova senha e confirmação ($params['token'], $params['newPassword'], $params['confirmPassword'])
-    // 2. Verificar se as senhas coincidem e têm o tamanho mínimo
-    // 3. Procurar o usuário pelo token NA TABELA 'users' E verificar se o token não expirou (comparar reset_token_expires_at com NOW())
-    // 4. Se o token for válido e não expirado:
-    //    a. Gerar o hash da nova senha
-    //    b. Atualizar a senha (password_hash) na tabela 'users'
-    //    c. Invalidar o token (definir reset_token e reset_token_expires_at como NULL)
-    //    d. Enviar resposta de sucesso
-    // 5. Se o token for inválido ou expirado, enviar erro apropriado.
-
-    // Exemplo simplificado (APENAS PARA ILUSTRAÇÃO, REQUER IMPLEMENTAÇÃO REAL)
+    
     if (!isset($params['token']) || !isset($params['newPassword']) || !isset($params['confirmPassword'])) {
         send_response(false, ['message' => 'Token e senhas são obrigatórios.'], 400);
     }

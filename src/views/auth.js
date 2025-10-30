@@ -8,7 +8,7 @@ export function renderLoginScreen() {
     return `
         <div class="auth-container">
             <h2>Login</h2>
-            <form onsubmit="window.AppHandlers.handleLogin(event)">
+            <form id="login-form" onsubmit="window.AppHandlers.handleLogin(event)">
                 <div class="form-group">
                     <label for="email">Email</label>
                     <input type="email" id="email" name="email" required autocomplete="username">
@@ -36,7 +36,7 @@ export function renderRegisterScreen() {
     return `
          <div class="auth-container">
             <h2>Cadastro</h2>
-            <form onsubmit="window.AppHandlers.handleRegister(event)">
+            <form id="register-form" onsubmit="window.AppHandlers.handleRegister(event)">
                 <div class="form-group">
                     <label for="name">Nome</label>
                     <input type="text" id="name" name="name" required autocomplete="name">
@@ -48,6 +48,11 @@ export function renderRegisterScreen() {
                 <div class="form-group">
                     <label for="password">Senha (mínimo 6 caracteres)</label>
                     <input type="password" id="password" name="password" required autocomplete="new-password" minlength="6">
+                </div>
+                
+                <div class="form-group">
+                    <label for="confirmPassword">Confirmar Senha</label>
+                    <input type="password" id="confirmPassword" name="confirmPassword" required autocomplete="new-password" minlength="6">
                 </div>
                 <button type="submit" class="auth-button">Cadastrar</button>
                 <p class="error-message" id="register-error" style="margin-top: 1rem;"></p>
@@ -66,7 +71,7 @@ export function renderForgotPasswordRequestScreen() {
         <div class="auth-container">
             <h2>Esqueci Minha Senha</h2>
             <p>Digite seu e-mail abaixo. Se ele estiver cadastrado, enviaremos um link para você criar uma nova senha.</p>
-            <form onsubmit="window.AppHandlers.handleForgotPasswordRequest(event)">
+            <form id="forgot-password-form" onsubmit="window.AppHandlers.handleForgotPasswordRequest(event)">
                 <div class="form-group">
                     <label for="email">Email</label>
                     <input type="email" id="email" name="email" required autocomplete="email">
@@ -99,7 +104,7 @@ export function renderResetPasswordScreen(token) {
     return `
         <div class="auth-container">
             <h2>Criar Nova Senha</h2>
-            <form onsubmit="window.AppHandlers.handleResetPassword(event)">
+            <form id="reset-password-form" onsubmit="window.AppHandlers.handleResetPassword(event)">
                 <input type="hidden" name="token" value="${token}">
                 <div class="form-group">
                     <label for="newPassword">Nova Senha (mínimo 6 caracteres)</label>

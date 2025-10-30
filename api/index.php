@@ -44,18 +44,20 @@ $action = isset($_REQUEST['action']) ? $_REQUEST['action'] : null;
 $inputData = json_decode(file_get_contents('php://input'), true);
 $input = is_array($inputData) ? $inputData : [];
 
+// --- CORREÇÃO DA ORDEM DE CARREGAMENTO ---
 // Inclui os handlers
-require_once __DIR__ . '/handlers/auth_handlers.php';
+require_once __DIR__ . '/handlers/system_handlers.php'; // <--- CARREGADO PRIMEIRO (Define a função)
+require_once __DIR__ . '/handlers/auth_handlers.php'; // <--- CARREGADO DEPOIS (Usa a função)
 require_once __DIR__ . '/handlers/user_handlers.php';
 require_once __DIR__ . '/handlers/course_handlers.php';
 require_once __DIR__ . '/handlers/enrollment_handlers.php';
 require_once __DIR__ . '/handlers/financial_handlers.php';
-require_once __DIR__ . '/handlers/system_handlers.php';
 require_once __DIR__ . '/handlers/ai_handlers.php';
 require_once __DIR__ . '/handlers/contract_handler.php';
 require_once __DIR__ . '/handlers/image_term_handler.php';
 require_once __DIR__ . '/handlers/receipt_handler.php';
 require_once __DIR__ . '/handlers/certificate_handler.php';
+// --- FIM DA CORREÇÃO ---
 
 // Verifica conexão PDO
 if (!isset($conn) || !$conn instanceof PDO) {

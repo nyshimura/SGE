@@ -37,9 +37,13 @@ export async function handleLogin(event) {
 export async function handleRegister(event) {
     event.preventDefault();
     const form = event.target;
-    const name = form.elements.namedItem('name').value;
+    
+    // --- CORREÇÃO 1: Ler 'name' como 'firstName' e adicionar 'confirmPassword' ---
+    const firstName = form.elements.namedItem('name').value;
     const email = form.elements.namedItem('email').value;
     const password = form.elements.namedItem('password').value;
+    const confirmPassword = form.elements.namedItem('confirmPassword').value; // Campo adicionado
+    
     const errorElement = document.getElementById('register-error');
     const submitButton = form.querySelector('button[type="submit"]');
 
@@ -50,10 +54,18 @@ export async function handleRegister(event) {
         return;
     }
 
+    // --- CORREÇÃO 2: Adicionar verificação de senhas no frontend ---
+    if (password !== confirmPassword) {
+        if (errorElement) errorElement.textContent = 'As senhas não coincidem.';
+        return;
+    }
+
     if (submitButton) submitButton.disabled = true;
 
     try {
-        await apiCall('register', { name, email, password });
+        // --- CORREÇÃO 3: Enviar 'firstName' e 'confirmPassword' para a API ---
+        await apiCall('register', { firstName, email, password, confirmPassword });
+        
         alert('Cadastro realizado com sucesso! Faça o login.');
         appState.currentView = 'login';
         if (window.location.hash) {

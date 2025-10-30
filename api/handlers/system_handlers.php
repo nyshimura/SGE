@@ -2,6 +2,31 @@
 // api/handlers/system_handlers.php
 
 /**
+ * Função auxiliar global para buscar configurações do sistema.
+ * Usada internamente por outros handlers (ex: auth_handlers).
+ * @return array|null Retorna um array com as configurações ou null se falhar.
+ */
+function get_system_settings($conn) {
+    if (!isset($conn) || !$conn instanceof PDO) {
+        error_log("Erro: Conexão PDO inválida em get_system_settings (helper).");
+        return null;
+    }
+    try {
+        $stmt = $conn->prepare("SELECT * FROM `system_settings` WHERE `id` = 1 LIMIT 1");
+        $stmt->execute();
+        $settings = $stmt->fetch(PDO::FETCH_ASSOC);
+        
+        // Retorna o array de configurações (ou null/false se não encontrado)
+        return $settings ? $settings : null; 
+
+    } catch (PDOException $e) {
+        error_log("Erro PDO em get_system_settings (helper): " . $e->getMessage());
+        return null;
+    }
+}
+
+
+/**
  * Handlers para ações relacionadas ao sistema e perfil da escola.
  */
 
