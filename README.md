@@ -4,6 +4,7 @@ Um sistema web completo para gerenciamento de instituições de ensino, focado e
 
 * [Sobre o Projeto](#-sobre-o-projeto)
 * [🚀 Funcionalidades Principais](#-funcionalidades-principais)
+* [🛠️ Tecnologias Utilizadas](#-tecnologias-utilizadas)
 * [🏁 Como Executar (Instalação)](#-como-executar-instalação)
 * [Como Usar](#-como-usar)
 * [📜 Licença](#-licença)
